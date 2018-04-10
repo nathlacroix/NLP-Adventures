@@ -1,8 +1,5 @@
 import tensorflow as tf
-import numpy as np
-import csv
 import os
-from dataset import get_dataset
 
 default_config = {
     'sentence_size': 30,
@@ -16,6 +13,7 @@ default_config = {
     'output_dir': "./logs/outputs",
     'summaries_dir': "./logs/summaries",
 }
+
 
 class Mode:
     TRAIN = 'train'
@@ -46,7 +44,7 @@ def build_model(sentence, mode, experiment, **config):
             A `Tensor` (type `tf.int32, shape `[B, N]`) containing the maximum-likelihood
             prediction of each word.
     """
-    
+
     raise NotImplementedError
 
 
@@ -92,13 +90,15 @@ def train(data, experiment, **config):
         print("Start training...")
         for epoch in range(config['num_epochs']):
             for x_batch in batches:
-                _, batch_loss, summary = sess.run([train_op, loss, summaries], feed_dict={x: x_batch})
+                _, batch_loss, summary = sess.run([train_op, loss, summaries],
+                                                  feed_dict={x: x_batch})
                 step = sess.run(global_step) - 1
                 train_writer.add_summary(summary, step)
                 print("Epoch " + str(epoch) + " ; batch " +
                       str(step % n_batches) + " ; loss = " + str(batch_loss))
                 if config['validation'] and step % config['validation_interval'] == 0:
-                    validation_loss, summary = sess.run([loss, summaries], feed_dict={x: data[1]})
+                    validation_loss, summary = sess.run([loss, summaries],
+                                                        feed_dict={x: data[1]})
                     test_writer.add_summary(summary, step)
                     print("Validation loss = " + str(validation_loss))
 
