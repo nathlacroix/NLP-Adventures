@@ -13,7 +13,23 @@ def set_seed(seed):
     np.random.seed(seed)
 
 
+def _initialize_structure(data_path, experiment, config):
+    if not os.path.exists(data_path):
+        raise Exception("Wrong data path: no such file or directory.")
+    if not os.path.exists(config['output_dir']):
+        os.makedirs(config['output_dir'])
+    if not os.path.exists(os.path.join(config['saved_models_dir'],
+                                       "experiment_" + experiment)):
+        os.makedirs(os.path.join(config['saved_models_dir'],
+                                 "experiment_" + experiment))
+    if not os.path.exists(os.path.join(config['summaries_dir'],
+                                       "experiment_" + experiment)):
+        os.makedirs(os.path.join(config['summaries_dir'],
+                                 "experiment_" + experiment))
+
+
 def _train(data_path, experiment, config):
+    _initialize_structure(data_path, experiment, config)
     set_seed(config['random_seed'])
     datasets = get_dataset(os.path.join(data_path, 'sentences.train'),
                            os.path.join(data_path, 'sentences.eval'),
@@ -30,6 +46,7 @@ def _eval(data_path, experiment, config):
                         + experiment +
                         " has to be trained first!" +
                         " Please train the model before evaluating it.")
+    _initialize_structure(data_path, experiment, config)
 
     set_seed(config['random_seed'])
     datasets = get_dataset(os.path.join(data_path, 'sentences.train'),
@@ -47,6 +64,7 @@ def _pred(data_path, experiment, config):
                         + experiment +
                         " has to be trained first!" +
                         " Please train the model before making a prediction.")
+    _initialize_structure(data_path, experiment, config)
 
     set_seed(config['random_seed'])
     datasets = get_dataset(os.path.join(data_path, 'sentences.train'),
