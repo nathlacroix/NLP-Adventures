@@ -10,7 +10,7 @@ _default_config = {
         'random_seed': 0,
 }
 
-_tokens = {
+tokens = {
         'start': '<bos>',
         'end': '<eos>',
         'pad': '<pad>',
@@ -22,12 +22,12 @@ def _parse_file(filename, config, add_end_token=True, pad=True):
     with open(filename, 'r') as f:
         sentences = f.read().split('\n')
     sentences = [s.split() for s in sentences]  # split into words
-    sentences = [[_tokens['start']] + s for s in sentences]
+    sentences = [[tokens['start']] + s for s in sentences]
     if add_end_token:
-        sentences = [s + [_tokens['end']] for s in sentences]
+        sentences = [s + [tokens['end']] for s in sentences]
     sentences = [s for s in sentences if len(s) <= config['sentence_size']]  # filter
     if pad:
-        sentences = [s + [_tokens['pad']]*(config['sentence_size']-len(s))
+        sentences = [s + [tokens['pad']]*(config['sentence_size']-len(s))
                      for s in sentences]  # pad
     return sentences
 
@@ -36,12 +36,12 @@ def _build_vocabulary(sentences, config):
     words = list(itertools.chain.from_iterable(sentences))
     counts = collections.Counter(words)
     words = sorted(counts.keys(), key=lambda w: (-counts[w], w))
-    vocabulary = [_tokens['unknown']] + words[:config['vocab_size']-1]
+    vocabulary = [tokens['unknown']] + words[:config['vocab_size']-1]
     return vocabulary
 
 
 def _convert_words_to_indices(sentences, word2idx):
-    return [[word2idx[w] if w in word2idx else word2idx[_tokens['unknown']] for w in s]
+    return [[word2idx[w] if w in word2idx else word2idx[tokens['unknown']] for w in s]
             for s in sentences]
 
 
