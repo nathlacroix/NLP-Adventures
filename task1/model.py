@@ -116,7 +116,6 @@ def eval(data, experiment, **config):
         data: An array of shape [M, N] (where M is the dataset size
             and N the sentence length) containing the indices
             of the words.
-        filepath: path where the output file will be stored
         experiment: 'A', 'B' or 'C'
         config: A configuration dictionary.
 
@@ -147,7 +146,8 @@ def pred(data, dictionary, experiment='C', **config):
         data: An array of shape [M, N] (where M is the dataset size
             and N the sentence length) containing the indices
             of the words.
-        filepath: path where the output file will be stored
+        dictionary: list of words composing the vocabulary. The index of each word
+            determines uniquely the word.
         experiment: 'A', 'B' or 'C'
         config: A configuration dictionary.
 
