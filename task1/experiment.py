@@ -1,7 +1,7 @@
 import tensorflow as tf
 import os
 
-from model import build_model
+from model import build_model, Mode
 
 
 def train(data, exp_dir, **config):
@@ -24,13 +24,17 @@ def train(data, exp_dir, **config):
     # (except for the last batch, which can be smaller)
     n_batches = len(batches)
 
-    (loss, embedding) = build_model(x, 'train', **config)
-    tf.summary.scalar('loss', loss)
+    with tf.name_scope("training"):
+        (loss, embedding) = build_model(x, Mode().TRAIN, **config)
+        summary_train = tf.summary.scalar('training_loss', loss)
     optimizer = tf.train.AdamOptimizer(config['learning_rate'], name='optimizer')
     global_step = tf.Variable(0, name='global_step', trainable=False)
     train_op = optimizer.minimize(loss, global_step=global_step)
 
-    summaries = tf.summary.merge_all()
+    with tf.name_scope("validation"):
+        perplexities_op = build_model(x, Mode().EVAL, **config)
+        summary_val = tf.summary.scalar('validation_perplexity', tf.reduce_mean(perplexities_op))
+
     train_writer = tf.summary.FileWriter(os.path.join(exp_dir,
                                                       "summaries/train"))
     test_writer = tf.summary.FileWriter(os.path.join(exp_dir,
@@ -46,17 +50,17 @@ def train(data, exp_dir, **config):
         print("Start training...")
         for epoch in range(config['num_epochs']):
             for x_batch in batches:
-                _, batch_loss, summary = sess.run([train_op, loss, summaries],
+                _, batch_loss, summary = sess.run([train_op, loss, summary_train],
                                                   feed_dict={x: x_batch})
                 step = sess.run(global_step) - 1
-                train_writer.add_summary(summary, step)
                 print("Epoch " + str(epoch) + " ; batch " +
                       str(step % n_batches) + " ; loss = " + str(batch_loss))
                 if config['validation'] and step % config['validation_interval'] == 0:
-                    validation_loss, summary = sess.run([loss, summaries],
-                                                        feed_dict={x: data[1]})
-                    test_writer.add_summary(summary, step)
-                    print("Validation loss = " + str(validation_loss))
+                    train_writer.add_summary(summary, step)
+                    validation_perplexity, summary_eval = sess.run([perplexities_op, summary_val],
+                                                              feed_dict={x: data[1]})
+                    test_writer.add_summary(summary_eval, step)
+                    print("Validation perplexity = " + str(validation_perplexity))
 
         save_path = saver.save(sess, os.path.join(exp_dir, "models/model.ckpt"))
         print("Training is over!")
@@ -77,7 +81,7 @@ def eval(data, exp_dir, **config):
         A numpy array of size M containing the perplexity of every sentences.
     """
     x = tf.placeholder(tf.int32, [None, data.shape[1]], 'sentences')
-    perplexities_op = build_model(x, 'eval', **config)
+    perplexities_op = build_model(x, Mode().EVAL, **config)
     saver = tf.train.Saver()
     with tf.Session() as sess:
         saver.restore(sess, os.path.join(exp_dir, "models/model.ckpt"))
@@ -107,7 +111,7 @@ def pred(data, dictionary, exp_dir, **config):
         A numpy array of size M containing the perplexity of every sentences.
     """
     x = tf.placeholder(tf.int32, [None, data.shape[1]], 'sentences')
-    prediction_op = build_model(x, 'pred', **config)
+    prediction_op = build_model(x, Mode().PRED, **config)
     saver = tf.train.Saver()
     with tf.Session() as sess:
         saver.restore(sess, os.path.join(exp_dir, "models/model.ckpt"))
