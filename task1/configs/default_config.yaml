@@ -1,11 +1,9 @@
 random_seed: 0
-dictionary_size: 20000
+vocab_size: 20000
 sentence_size: 30
 batch_size: 64
 num_epochs: 100
 learning_rate: 0.001
 validation: True
 validation_interval: 100
-saved_models_dir: "./logs/models"
-output_dir: "./logs/outputs"
-summaries_dir: "./logs/summaries"
+log_dir: "./logs"

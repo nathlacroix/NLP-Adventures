@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 from dataset import get_dataset
-from model import train, eval, pred
+from experiment import train, eval, pred
 
 
 def set_seed(seed):
@@ -13,58 +13,57 @@ def set_seed(seed):
     np.random.seed(seed)
 
 
-def _initialize_structure(data_path, experiment, config):
+def _initialize_structure(data_path, exp_name, config):
     if not os.path.exists(data_path):
         raise Exception("Wrong data path: no such file or directory.")
-    if not os.path.exists(config['output_dir']):
-        os.makedirs(config['output_dir'])
-    if not os.path.exists(os.path.join(config['saved_models_dir'],
-                                       "experiment_" + experiment)):
-        os.makedirs(os.path.join(config['saved_models_dir'],
-                                 "experiment_" + experiment))
-    if not os.path.exists(os.path.join(config['summaries_dir'],
-                                       "experiment_" + experiment)):
-        os.makedirs(os.path.join(config['summaries_dir'],
-                                 "experiment_" + experiment))
+    exp_dir = os.path.join(config['log_dir'], "exp_" + exp_name)
+    models_dir = os.path.join(exp_dir, "models")
+    output_dir = os.path.join(exp_dir, "outputs")
+    summaries_dir = os.path.join(exp_dir, "summaries")
+    if not os.path.exists(models_dir):
+        os.makedirs(models_dir)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    if not os.path.exists(summaries_dir):
+        os.makedirs(summaries_dir)
+    return exp_dir
 
 
-def _train(data_path, experiment, config):
-    _initialize_structure(data_path, experiment, config)
+def _train(data_path, exp_name, config):
+    exp_dir = _initialize_structure(data_path, exp_name, config)
     set_seed(config['random_seed'])
     datasets = get_dataset(os.path.join(data_path, 'sentences.train'),
                            os.path.join(data_path, 'sentences.eval'),
                            **config)
     data_train = datasets[1:3]
-    train(data_train, experiment, **config)
+    train(data_train, exp_dir, **config)
 
 
-def _eval(data_path, experiment, config):
-    if not os.path.exists(os.path.join(config['saved_models_dir'],
-                                       'experiment_' + experiment,
-                                       "experiment_" + experiment + ".ckpt.index")):
+def _eval(data_path, exp_name, config):
+    exp_dir = _initialize_structure(data_path, exp_name, config)
+    if not os.path.exists(os.path.join(exp_dir,
+                                       "models/model.ckpt.index")):
         raise Exception("The model for experiment "
-                        + experiment +
+                        + exp_name +
                         " has to be trained first!" +
                         " Please train the model before evaluating it.")
-    _initialize_structure(data_path, experiment, config)
 
     set_seed(config['random_seed'])
     datasets = get_dataset(os.path.join(data_path, 'sentences.train'),
                            os.path.join(data_path, 'sentences.eval'),
                            **config)
     data_eval = datasets[3]
-    eval(data_eval, experiment, **config)
+    eval(data_eval, exp_dir, **config)
 
 
-def _pred(data_path, experiment, config):
-    if not os.path.exists(os.path.join(config['saved_models_dir'],
-                                       'experiment_' + experiment,
-                                       "experiment_" + experiment + ".ckpt.index")):
+def _pred(data_path, exp_name, config):
+    exp_dir = _initialize_structure(data_path, exp_name, config)
+    if not os.path.exists(os.path.join(exp_dir,
+                                       "models/model.ckpt.index")):
         raise Exception("The model for experiment "
-                        + experiment +
+                        + exp_name +
                         " has to be trained first!" +
-                        " Please train the model before making a prediction.")
-    _initialize_structure(data_path, experiment, config)
+                        " Please train the model before doing a prediction.")
 
     set_seed(config['random_seed'])
     datasets = get_dataset(os.path.join(data_path, 'sentences.train'),
@@ -72,7 +71,7 @@ def _pred(data_path, experiment, config):
                            **config)
     dictionary = datasets[0]
     data_pred = datasets[3]
-    pred(data_pred, dictionary, experiment, **config)
+    pred(data_pred, dictionary, exp_dir, **config)
 
 
 if __name__ == '__main__':
@@ -83,22 +82,21 @@ if __name__ == '__main__':
     p_train = subparsers.add_parser('train')
     p_train.add_argument('--config', type=str, help="path to config file")
     p_train.add_argument('--data', type=str, help="path to data folder")
-    p_train.add_argument('--exp', type=str, help="experiment ('A', 'B' or 'C')")
+    p_train.add_argument('--exp', type=str, help="name of the experiment")
     p_train.set_defaults(func=_train)
 
     # Evaluation command
     p_train = subparsers.add_parser('evaluate')
     p_train.add_argument('--config', type=str, help="path to config file")
     p_train.add_argument('--data', type=str, help="path to data folder")
-    p_train.add_argument('--exp', type=str, help="experiment ('A', 'B' or 'C')")
+    p_train.add_argument('--exp', type=str, help="name of the experiment")
     p_train.set_defaults(func=_eval)
 
     # Inference command
     p_train = subparsers.add_parser('predict')
     p_train.add_argument('--config', type=str, help="path to config file")
     p_train.add_argument('--data', type=str, help="path to data folder")
-    p_train.add_argument('--exp', type=str, default='C',
-                         help="experiment ('A', 'B' or 'C')")
+    p_train.add_argument('--exp', type=str, help="name of the experiment")
     p_train.set_defaults(func=_pred)
 
     args = parser.parse_args()
