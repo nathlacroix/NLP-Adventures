@@ -1,9 +1,9 @@
 random_seed: 0
 vocab_size: 20000
+validation_size: 100
 sentence_size: 30
 batch_size: 64
 num_epochs: 100
 learning_rate: 0.001
-validation: True
 validation_interval: 100
 log_dir: "./logs"

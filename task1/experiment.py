@@ -1,24 +1,25 @@
 import tensorflow as tf
+import numpy as np
 import os
 
 from model import build_model, Mode
 
 
-def train(data, exp_dir, **config):
+def train(train_data, val_data, exp_dir, **config):
     """ Train the model on the data.
 
     Arguments:
-        data: A tuple of size 1 or 2 (if a validation set is available)
-            where each element is an array of shape (M, N) (where M is the dataset size
-            and N the sentence length) containing the indices of the words.
+        train_data: An array of shape (M, N) used for training (where M is the dataset
+                    size and N the sentence length) containing the indices of the words.
+        val_data: idem but for validation
         exp_dir: path of the log directory for this experiment
         config: A configuration dictionary.
     """
     # Prepare batches
-    (M, N) = data[0].shape
+    (M, N) = train_data.shape
+    np.random.shuffle(train_data)
     x = tf.placeholder(tf.int32, [None, N], 'sentences')
-    x = tf.random_shuffle(x, seed=config['random_seed'])
-    batches = [data[0][beg:(beg+config['batch_size']), :]
+    batches = [train_data[beg:(beg+config['batch_size']), :]
                for beg in range(0, M, config['batch_size'])]
     # List of np.array of size 'batch_size' x N
     # (except for the last batch, which can be smaller)
@@ -33,7 +34,8 @@ def train(data, exp_dir, **config):
 
     with tf.name_scope("validation"):
         perplexities_op = build_model(x, Mode().EVAL, **config)
-        summary_val = tf.summary.scalar('validation_perplexity', tf.reduce_mean(perplexities_op))
+        summary_val = tf.summary.scalar('validation_perplexity',
+                                        tf.reduce_mean(perplexities_op))
 
     train_writer = tf.summary.FileWriter(os.path.join(exp_dir,
                                                       "summaries/train"))
@@ -55,12 +57,13 @@ def train(data, exp_dir, **config):
                 step = sess.run(global_step) - 1
                 print("Epoch " + str(epoch) + " ; batch " +
                       str(step % n_batches) + " ; loss = " + str(batch_loss))
-                if config['validation'] and step % config['validation_interval'] == 0:
+                if step % config['validation_interval'] == 0:
                     train_writer.add_summary(summary, step)
-                    validation_perplexity, summary_eval = sess.run([perplexities_op, summary_val],
-                                                              feed_dict={x: data[1]})
+                    val_perplexity, summary_eval = sess.run([perplexities_op,
+                                                             summary_val],
+                                                            feed_dict={x: val_data})
                     test_writer.add_summary(summary_eval, step)
-                    print("Validation perplexity = " + str(validation_perplexity))
+                    print("Validation perplexity = " + str(val_perplexity))
 
         save_path = saver.save(sess, os.path.join(exp_dir, "models/model.ckpt"))
         print("Training is over!")
@@ -68,17 +71,14 @@ def train(data, exp_dir, **config):
 
 
 def eval(data, exp_dir, **config):
-    """ Evaluate the model on the data and store the result in a file.
+    """ Evaluate the model on the data and store the result in a file
+        (perplexity of every sentence).
 
     Arguments:
         data: An array of shape [M, N] (where M is the dataset size
-            and N the sentence length) containing the indices
-            of the words.
+              and N the sentence length) containing the indices of the words.
         exp_dir: path of the log directory for this experiment
         config: A configuration dictionary.
-
-    Returns:
-        A numpy array of size M containing the perplexity of every sentences.
     """
     x = tf.placeholder(tf.int32, [None, data.shape[1]], 'sentences')
     perplexities_op = build_model(x, Mode().EVAL, **config)
@@ -96,19 +96,16 @@ def eval(data, exp_dir, **config):
 
 
 def pred(data, dictionary, exp_dir, **config):
-    """ Evaluate the model on the data and store the result in a file.
+    """ Make a prediction with the model from the data and store the result in a file
+        (sentences completed by the network)
 
     Arguments:
         data: An array of shape [M, N] (where M is the dataset size
-            and N the sentence length) containing the indices
-            of the words.
+              and N the sentence length) containing the indices of the words.
         dictionary: list of words composing the vocabulary. The index of each word
-            determines uniquely the word.
+                    determines uniquely the word.
         exp_dir: path of the log directory for this experiment
         config: A configuration dictionary.
-
-    Returns:
-        A numpy array of size M containing the perplexity of every sentences.
     """
     x = tf.placeholder(tf.int32, [None, data.shape[1]], 'sentences')
     prediction_op = build_model(x, Mode().PRED, **config)

@@ -32,11 +32,10 @@ def _initialize_structure(data_path, exp_name, config):
 def _train(data_path, exp_name, config):
     exp_dir = _initialize_structure(data_path, exp_name, config)
     set_seed(config['random_seed'])
-    datasets = get_dataset(os.path.join(data_path, 'sentences.train'),
-                           os.path.join(data_path, 'sentences.eval'),
-                           **config)
-    data_train = datasets[1:3]
-    train(data_train, exp_dir, **config)
+    datasets = get_dataset(data_path, **config)
+    train_data = np.array(datasets[1])
+    val_data = np.array(datasets[2])
+    train(train_data, val_data, exp_dir, **config)
 
 
 def _eval(data_path, exp_name, config):
@@ -49,11 +48,9 @@ def _eval(data_path, exp_name, config):
                         " Please train the model before evaluating it.")
 
     set_seed(config['random_seed'])
-    datasets = get_dataset(os.path.join(data_path, 'sentences.train'),
-                           os.path.join(data_path, 'sentences.eval'),
-                           **config)
-    data_eval = datasets[3]
-    eval(data_eval, exp_dir, **config)
+    datasets = get_dataset(data_path, **config)
+    test_data = np.array(datasets[3])
+    eval(test_data, exp_dir, **config)
 
 
 def _pred(data_path, exp_name, config):
@@ -66,12 +63,10 @@ def _pred(data_path, exp_name, config):
                         " Please train the model before doing a prediction.")
 
     set_seed(config['random_seed'])
-    datasets = get_dataset(os.path.join(data_path, 'sentences.train'),
-                           os.path.join(data_path, 'sentences.continuation'),
-                           **config)
+    datasets = get_dataset(data_path, **config)
     dictionary = datasets[0]
-    data_pred = datasets[3]
-    pred(data_pred, dictionary, exp_dir, **config)
+    pred_data = np.array(datasets[4])
+    pred(pred_data, dictionary, exp_dir, **config)
 
 
 if __name__ == '__main__':
