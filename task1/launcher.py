@@ -1,6 +1,7 @@
 import yaml
 import os
 import argparse
+from gensim import models
 import numpy as np
 import tensorflow as tf
 
@@ -29,13 +30,49 @@ def _initialize_structure(data_path, exp_name, config):
     return exp_dir
 
 
+def load_embedding(data_path, dictionary, config):
+    """ Load an external word embedding stored in data_path.
+
+    Arguments:
+        data_path: path to the data where the word embedding has to be stored.
+        dictionary: a list of all the words.
+
+    Returns: a np array of size (embedding_size, vocab_size)
+    """
+    path = os.path.join(data_path, config['embedding_name'])
+    if not os.path.exists(path):
+        raise Exception("Pretrained word embedding not found." +
+                        " Please add the file " + config['embedding_name'] +
+                        " to your data path.")
+
+    model = models.KeyedVectors.load_word2vec_format(path, binary=False)
+    external_embedding = np.zeros(shape=(config['vocab_size'], config['embedding_size']))
+
+    for idx, tok in enumerate(dictionary):
+        if tok in model.vocab:
+            external_embedding[idx] = model[tok]
+        else:
+            print("%s not in embedding file" % tok)
+            external_embedding[idx] = np.random.uniform(low=-0.25,
+                                                        high=0.25,
+                                                        size=config['embedding_size'])
+    return np.transpose(external_embedding)
+
+
 def _train(data_path, exp_name, config):
     exp_dir = _initialize_structure(data_path, exp_name, config)
     set_seed(config['random_seed'])
     datasets = get_dataset(data_path, **config)
+    dictionary = datasets[0]
     train_data = np.array(datasets[1])
     val_data = np.array(datasets[2])
-    train(train_data, val_data, exp_dir, **config)
+
+    # Load an external embedding if necessary
+    embedding = None
+    if config['use_external_embedding']:
+        embedding = load_embedding(data_path, dictionary, config)
+
+    train(train_data, val_data, embedding, exp_dir, **config)
 
 
 def _eval(data_path, exp_name, config):

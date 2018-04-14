@@ -5,14 +5,15 @@ import os
 from model import build_model, Mode
 
 
-def train(train_data, val_data, exp_dir, **config):
+def train(train_data, val_data, external_embedding, exp_dir, **config):
     """ Train the model on the data.
 
     Arguments:
         train_data: An array of shape (M, N) used for training (where M is the dataset
                     size and N the sentence length) containing the indices of the words.
-        val_data: idem but for validation
-        exp_dir: path of the log directory for this experiment
+        val_data: idem but for validation.
+        external_embedding: a np array of shape (embedding_size, vocab_size).
+        exp_dir: path of the log directory for this experiment.
         config: A configuration dictionary.
     """
     # Prepare batches
@@ -28,6 +29,12 @@ def train(train_data, val_data, exp_dir, **config):
     with tf.name_scope("training"):
         (loss, embedding) = build_model(x, Mode().TRAIN, **config)
         summary_train = tf.summary.scalar('training_loss', loss)
+
+    # Possibly load a pretrained embedding
+    if config['use_external_embedding']:
+        pretrained_embeddings = tf.placeholder(tf.float32, [None, None])
+        assign_op = embedding.assign(pretrained_embeddings)
+
     optimizer = tf.train.AdamOptimizer(config['learning_rate'], name='optimizer')
     global_step = tf.Variable(0, name='global_step', trainable=False)
     train_op = optimizer.minimize(loss, global_step=global_step)
@@ -47,7 +54,8 @@ def train(train_data, val_data, exp_dir, **config):
     with tf.Session() as sess:
         sess.run(tf.local_variables_initializer())
         sess.run(tf.global_variables_initializer())
-        # TODO: load pretrained embedding if path is present in config
+        if config['use_external_embedding']:  # assign a pretrained embedding
+            sess.run(assign_op, {pretrained_embeddings: external_embedding})
 
         print("Start training...")
         for epoch in range(config['num_epochs']):
