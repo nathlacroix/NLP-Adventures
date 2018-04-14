@@ -39,7 +39,8 @@ def train(train_data, val_data, external_embedding, exp_dir, **config):
     global_step = tf.Variable(0, name='global_step', trainable=False)
     gradients, variables = zip(*optimizer.compute_gradients(loss))
     gradients, _ = tf.clip_by_global_norm(gradients, 5.0)
-    train_op = optimizer.apply_gradients(zip(gradients, variables), global_step=global_step)
+    train_op = optimizer.apply_gradients(zip(gradients, variables),
+                                         global_step=global_step)
 
     with tf.name_scope("validation"):
         perplexities_op = build_model(x, Mode().EVAL, **config)
