@@ -3,7 +3,7 @@ vocab_size: 20000
 validation_size: 100
 sentence_size: 30
 embedding_size: 100
-use_external_embedding: True
+use_external_embedding: False
 embedding_name: "wordembeddings-dim100.word2vec"
 batch_size: 64
 num_epochs: 100

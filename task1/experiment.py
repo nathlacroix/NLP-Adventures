@@ -37,7 +37,9 @@ def train(train_data, val_data, external_embedding, exp_dir, **config):
 
     optimizer = tf.train.AdamOptimizer(config['learning_rate'], name='optimizer')
     global_step = tf.Variable(0, name='global_step', trainable=False)
-    train_op = optimizer.minimize(loss, global_step=global_step)
+    gradients, variables = zip(*optimizer.compute_gradients(loss))
+    gradients, _ = tf.clip_by_global_norm(gradients, 5.0)
+    train_op = optimizer.apply_gradients(zip(gradients, variables), global_step=global_step)
 
     with tf.name_scope("validation"):
         perplexities_op = build_model(x, Mode().EVAL, **config)
