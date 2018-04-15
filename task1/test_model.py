@@ -48,4 +48,4 @@ if __name__ == '__main__':
         _predictions = sess.run(predictions, feed_dict={sentences: sample})
 
         assert _predictions.shape == (2, config['sentence_size'])
-        d = 0
+
