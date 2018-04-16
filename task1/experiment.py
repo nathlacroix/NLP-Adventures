@@ -65,24 +65,27 @@ def train(train_data, val_data, external_embedding, pad_ind, exp_dir, **config):
             sess.run(assign_op, {pretrained_embeddings: external_embedding})
 
         logging.info("Start training...")
-        for epoch in range(config['num_epochs']):
-            for x_batch in batches:
+        try:
+            for it in range(config['num_iter']):
+                x_batch = batches[it % n_batches]
                 _, batch_loss, summary = sess.run([train_op, loss, summary_train],
                                                   feed_dict={x: x_batch})
-                step = sess.run(global_step) - 1
-                if step % config['validation_interval'] == 0:
-                    train_writer.add_summary(summary, step)
+                if it % config['validation_interval'] == 0:
+                    train_writer.add_summary(summary, it)
                     val_perplexity, summary_eval = sess.run([perplexities_op,
                                                              summary_val],
                                                             feed_dict={x: val_data})
-                    test_writer.add_summary(summary_eval, step)
-                    logging.info("Epoch " + str(epoch) + " ; batch " +
-                                    str(step % n_batches) + " ; loss = " + str(batch_loss))
-                    logging.info("Validation perplexity = " + str(np.mean(val_perplexity)))
+                    test_writer.add_summary(summary_eval, it)
+                    logging.info("Iter " +
+                                 str(it) + " ; loss = " + str(batch_loss))
+                    logging.info("Validation perplexity = " +
+                                 str(np.mean(val_perplexity)))
+            logging.info("Training is over!")
+        except KeyboardInterrupt:
+            logging.info('Got Keyboard Interrupt, saving model and closing.')
 
         save_path = saver.save(sess, os.path.join(exp_dir, "models/model.ckpt"))
-        logging.info("Training is over!")
-        logging.info("Trained model saved in " + save_path)
+        logging.info("Model saved in " + save_path)
 
 
 def eval(data, pad_ind, exp_dir, **config):
