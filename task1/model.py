@@ -1,16 +1,3 @@
-import tensorflow as tf
-
-default_config = {
-    'sentence_size': 30,
-    'batch_size': 64,
-    'random_seed': 0,
-    'num_epochs': 100,
-    'learning_rate': 0.001,
-    'validation': True,
-    'validation_interval': 100,
-    'log_dir': "./logs",
-}
-
 
 class Mode:
     TRAIN = 'train'
@@ -26,7 +13,6 @@ def build_model(sentence, mode, **config):
             and N the sentence length and can change dynamically) containing the indices
             of the words (type `tf.int32`).
         mode: The graph mode (type `Mode`).
-        experiment: 'A', 'B' or 'C'
         config: A configuration dictionary.
 
     Returns:
