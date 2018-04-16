@@ -102,7 +102,7 @@ def _pred(data_path, exp_name, config):
     set_seed(config['random_seed'])
     datasets = get_dataset(data_path, **config)
     dictionary = datasets[0]
-    pred_data = np.array(datasets[4])
+    pred_data = datasets[4]
     pred(pred_data, dictionary, exp_dir, **config)
 
 

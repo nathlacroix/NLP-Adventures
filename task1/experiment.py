@@ -27,7 +27,7 @@ def train(train_data, val_data, external_embedding, exp_dir, **config):
     n_batches = len(batches)
 
     with tf.name_scope("training"):
-        (loss, embedding) = build_model(x, Mode().TRAIN, **config)
+        (loss, embedding) = build_model(x, Mode.TRAIN, **config)
         summary_train = tf.summary.scalar('training_loss', loss)
 
     # Possibly load a pretrained embedding
@@ -43,7 +43,7 @@ def train(train_data, val_data, external_embedding, exp_dir, **config):
                                          global_step=global_step)
 
     with tf.name_scope("validation"):
-        perplexities_op = build_model(x, Mode().EVAL, **config)
+        perplexities_op = build_model(x, Mode.EVAL, **config)
         summary_val = tf.summary.scalar('validation_perplexity',
                                         tf.reduce_mean(perplexities_op))
 
@@ -92,7 +92,7 @@ def eval(data, exp_dir, **config):
         config: A configuration dictionary.
     """
     x = tf.placeholder(tf.int32, [None, data.shape[1]], 'sentences')
-    perplexities_op = build_model(x, Mode().EVAL, **config)
+    perplexities_op = build_model(x, Mode.EVAL, **config)
     saver = tf.train.Saver()
     with tf.Session() as sess:
         saver.restore(sess, os.path.join(exp_dir, "models/model.ckpt"))
@@ -111,19 +111,22 @@ def pred(data, dictionary, exp_dir, **config):
         (sentences completed by the network)
 
     Arguments:
-        data: An array of shape [M, N] (where M is the dataset size
-              and N the sentence length) containing the indices of the words.
+        data: A list of lists (of various sizes) where each sublist contains the indices
+              of the words of the beginning of the sentence to predict.
         dictionary: list of words composing the vocabulary. The index of each word
                     determines uniquely the word.
         exp_dir: path of the log directory for this experiment
         config: A configuration dictionary.
     """
-    x = tf.placeholder(tf.int32, [None, data.shape[1]], 'sentences')
-    prediction_op = build_model(x, Mode().PRED, **config)
+    x = tf.placeholder(tf.int32, [None, None], 'sentences')
+    prediction_op = build_model(x, Mode.PRED, **config)
     saver = tf.train.Saver()
+    prediction = np.zeros((len(data), config['sentence_size']), dtype=int)
     with tf.Session() as sess:
         saver.restore(sess, os.path.join(exp_dir, "models/model.ckpt"))
-        prediction = sess.run(prediction_op, feed_dict={x: data})
+        for s in range(len(data)):
+            current_sentence = np.array([data[s]])
+            prediction[s, :] = sess.run(prediction_op, feed_dict={x: current_sentence})
 
     # Write the predictions to a file
     path = os.path.join(exp_dir, "outputs/group27.continuation")
