@@ -1,6 +1,7 @@
 random_seed: 0
 vocab_size: 20000
 validation_size: 100
+state_size: 512
 sentence_size: 30
 embedding_size: 100
 use_external_embedding: False

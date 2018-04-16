@@ -1,8 +1,11 @@
-import tensorflow as tf
+import logging
 import numpy as np
 import os
 
-from model import build_model, Mode
+logging.basicConfig(format='[%(asctime)s %(levelname)s] %(message)s',
+                    datefmt='%m/%d/%Y %H:%M:%S', level=logging.INFO)
+import tensorflow as tf  # noqa: E402
+from model import build_model, Mode  # noqa: E402
 
 
 def train(train_data, val_data, external_embedding, pad_ind, exp_dir, **config):
@@ -61,25 +64,25 @@ def train(train_data, val_data, external_embedding, pad_ind, exp_dir, **config):
         if config['use_external_embedding']:  # assign a pretrained embedding
             sess.run(assign_op, {pretrained_embeddings: external_embedding})
 
-        print("Start training...")
+        logging.info("Start training...")
         for epoch in range(config['num_epochs']):
             for x_batch in batches:
                 _, batch_loss, summary = sess.run([train_op, loss, summary_train],
                                                   feed_dict={x: x_batch})
                 step = sess.run(global_step) - 1
-                print("Epoch " + str(epoch) + " ; batch " +
-                      str(step % n_batches) + " ; loss = " + str(batch_loss))
                 if step % config['validation_interval'] == 0:
                     train_writer.add_summary(summary, step)
                     val_perplexity, summary_eval = sess.run([perplexities_op,
                                                              summary_val],
                                                             feed_dict={x: val_data})
                     test_writer.add_summary(summary_eval, step)
-                    print("Validation perplexity = " + str(val_perplexity))
+                    logging.info("Epoch " + str(epoch) + " ; batch " +
+                                    str(step % n_batches) + " ; loss = " + str(batch_loss))
+                    logging.info("Validation perplexity = " + str(np.mean(val_perplexity)))
 
         save_path = saver.save(sess, os.path.join(exp_dir, "models/model.ckpt"))
-        print("Training is over!")
-        print("Trained model saved in " + save_path)
+        logging.info("Training is over!")
+        logging.info("Trained model saved in " + save_path)
 
 
 def eval(data, pad_ind, exp_dir, **config):
@@ -104,8 +107,8 @@ def eval(data, pad_ind, exp_dir, **config):
     with open(path, 'w') as writer:
         for p in perplexities:
             writer.write(str(p) + '\n')
-    print("Evaluation is over!")
-    print("Evaluation saved in " + path)
+    logging.info("Evaluation is over!")
+    logging.info("Evaluation saved in " + path)
 
 
 def pred(data, dictionary, pad_ind, exp_dir, **config):
@@ -144,5 +147,5 @@ def pred(data, dictionary, pad_ind, exp_dir, **config):
                     writer.write(word + ' ')
             if s != prediction.shape[0] - 1:
                 writer.write('\n')
-    print("Prediction is over!")
-    print("Prediction saved in " + path)
+    logging.info("Prediction is over!")
+    logging.info("Prediction saved in " + path)

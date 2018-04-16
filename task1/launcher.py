@@ -136,23 +136,23 @@ if __name__ == '__main__':
 
     # Training command
     p_train = subparsers.add_parser('train')
-    p_train.add_argument('--config', type=str, help="path to config file")
-    p_train.add_argument('--data', type=str, help="path to data folder")
-    p_train.add_argument('--exp', type=str, help="name of the experiment")
+    p_train.add_argument('config', type=str, help="path to config file")
+    p_train.add_argument('data', type=str, help="path to data folder")
+    p_train.add_argument('exp', type=str, help="name of the experiment")
     p_train.set_defaults(func=_train)
 
     # Evaluation command
     p_train = subparsers.add_parser('evaluate')
-    p_train.add_argument('--config', type=str, help="path to config file")
-    p_train.add_argument('--data', type=str, help="path to data folder")
-    p_train.add_argument('--exp', type=str, help="name of the experiment")
+    p_train.add_argument('config', type=str, help="path to config file")
+    p_train.add_argument('data', type=str, help="path to data folder")
+    p_train.add_argument('exp', type=str, help="name of the experiment")
     p_train.set_defaults(func=_eval)
 
     # Inference command
     p_train = subparsers.add_parser('predict')
-    p_train.add_argument('--config', type=str, help="path to config file")
-    p_train.add_argument('--data', type=str, help="path to data folder")
-    p_train.add_argument('--exp', type=str, help="name of the experiment")
+    p_train.add_argument('config', type=str, help="path to config file")
+    p_train.add_argument('data', type=str, help="path to data folder")
+    p_train.add_argument('exp', type=str, help="name of the experiment")
     p_train.set_defaults(func=_pred)
 
     args = parser.parse_args()

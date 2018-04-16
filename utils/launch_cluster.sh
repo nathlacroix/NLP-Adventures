@@ -3,8 +3,8 @@
 cores="15"
 memory="4500"  # per core
 scratch="5000"
-gpus="2"
-clock="24:00"
+gpus="1"
+clock="4:00"
 model="GeForceGTX1080Ti"
 warn="-wt 15 -wa INT"
 
