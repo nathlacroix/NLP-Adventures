@@ -72,7 +72,14 @@ def _train(data_path, exp_name, config):
     if config['use_external_embedding']:
         embedding = load_embedding(data_path, dictionary, config)
 
-    train(train_data, val_data, embedding, exp_dir, **config)
+    # Get the index corresponding to token <pad>
+    pad_token = "<pad>"
+    if pad_token in dictionary:
+        pad_ind = dictionary.index(pad_token)
+    else:
+        raise Exception("Token <pad> should be present in dictionary.")
+
+    train(train_data, val_data, embedding, pad_ind, exp_dir, **config)
 
 
 def _eval(data_path, exp_name, config):
@@ -86,8 +93,17 @@ def _eval(data_path, exp_name, config):
 
     set_seed(config['random_seed'])
     datasets = get_dataset(data_path, **config)
+    dictionary = datasets[0]
     test_data = np.array(datasets[3])
-    eval(test_data, exp_dir, **config)
+
+    # Get the index corresponding to token <pad>
+    pad_token = "<pad>"
+    if pad_token in dictionary:
+        pad_ind = dictionary.index(pad_token)
+    else:
+        raise Exception("Token <pad> should be present in dictionary.")
+
+    eval(test_data, pad_ind, exp_dir, **config)
 
 
 def _pred(data_path, exp_name, config):
@@ -103,7 +119,15 @@ def _pred(data_path, exp_name, config):
     datasets = get_dataset(data_path, **config)
     dictionary = datasets[0]
     pred_data = datasets[4]
-    pred(pred_data, dictionary, exp_dir, **config)
+
+    # Get the index corresponding to token <pad>
+    pad_token = "<pad>"
+    if pad_token in dictionary:
+        pad_ind = dictionary.index(pad_token)
+    else:
+        raise Exception("Token <pad> should be present in dictionary.")
+
+    pred(pred_data, dictionary, pad_ind, exp_dir, **config)
 
 
 if __name__ == '__main__':

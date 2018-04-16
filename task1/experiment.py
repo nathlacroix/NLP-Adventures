@@ -5,7 +5,7 @@ import os
 from model import build_model, Mode
 
 
-def train(train_data, val_data, external_embedding, exp_dir, **config):
+def train(train_data, val_data, external_embedding, pad_ind, exp_dir, **config):
     """ Train the model on the data.
 
     Arguments:
@@ -13,6 +13,7 @@ def train(train_data, val_data, external_embedding, exp_dir, **config):
                     size and N the sentence length) containing the indices of the words.
         val_data: idem but for validation.
         external_embedding: a np array of shape (embedding_size, vocab_size).
+        pad_ind: index of the token <pad>
         exp_dir: path of the log directory for this experiment.
         config: A configuration dictionary.
     """
@@ -27,7 +28,7 @@ def train(train_data, val_data, external_embedding, exp_dir, **config):
     n_batches = len(batches)
 
     with tf.name_scope("training"):
-        (loss, embedding) = build_model(x, Mode.TRAIN, **config)
+        (loss, embedding) = build_model(x, pad_ind, Mode.TRAIN, **config)
         summary_train = tf.summary.scalar('training_loss', loss)
 
     # Possibly load a pretrained embedding
@@ -43,7 +44,7 @@ def train(train_data, val_data, external_embedding, exp_dir, **config):
                                          global_step=global_step)
 
     with tf.name_scope("validation"):
-        perplexities_op = build_model(x, Mode.EVAL, **config)
+        perplexities_op = build_model(x, pad_ind, Mode.EVAL, **config)
         summary_val = tf.summary.scalar('validation_perplexity',
                                         tf.reduce_mean(perplexities_op))
 
@@ -81,18 +82,19 @@ def train(train_data, val_data, external_embedding, exp_dir, **config):
         print("Trained model saved in " + save_path)
 
 
-def eval(data, exp_dir, **config):
+def eval(data, pad_ind, exp_dir, **config):
     """ Evaluate the model on the data and store the result in a file
         (perplexity of every sentence).
 
     Arguments:
         data: An array of shape [M, N] (where M is the dataset size
               and N the sentence length) containing the indices of the words.
+        pad_ind: index of the token <pad>
         exp_dir: path of the log directory for this experiment
         config: A configuration dictionary.
     """
     x = tf.placeholder(tf.int32, [None, data.shape[1]], 'sentences')
-    perplexities_op = build_model(x, Mode.EVAL, **config)
+    perplexities_op = build_model(x, pad_ind, Mode.EVAL, **config)
     saver = tf.train.Saver()
     with tf.Session() as sess:
         saver.restore(sess, os.path.join(exp_dir, "models/model.ckpt"))
@@ -106,7 +108,7 @@ def eval(data, exp_dir, **config):
     print("Evaluation saved in " + path)
 
 
-def pred(data, dictionary, exp_dir, **config):
+def pred(data, dictionary, pad_ind, exp_dir, **config):
     """ Make a prediction with the model from the data and store the result in a file
         (sentences completed by the network)
 
@@ -115,11 +117,12 @@ def pred(data, dictionary, exp_dir, **config):
               of the words of the beginning of the sentence to predict.
         dictionary: list of words composing the vocabulary. The index of each word
                     determines uniquely the word.
+        pad_ind: index of the token <pad>
         exp_dir: path of the log directory for this experiment
         config: A configuration dictionary.
     """
     x = tf.placeholder(tf.int32, [None, None], 'sentences')
-    prediction_op = build_model(x, Mode.PRED, **config)
+    prediction_op = build_model(x, pad_ind, Mode.PRED, **config)
     saver = tf.train.Saver()
     prediction = np.zeros((len(data), config['sentence_size']), dtype=int)
     with tf.Session() as sess:
