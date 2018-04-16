@@ -76,10 +76,10 @@ def train(train_data, val_data, external_embedding, pad_ind, exp_dir, **config):
                                                              summary_val],
                                                             feed_dict={x: val_data})
                     test_writer.add_summary(summary_eval, it)
-                    logging.info("Iter " +
-                                 str(it) + " ; loss = " + str(batch_loss))
-                    logging.info("Validation perplexity = " +
-                                 str(np.mean(val_perplexity)))
+                    tf.logging.info(
+                            'Iter {:4d}: Loss {:.4f}: '
+                            'Validation perplexity {:.4f}'.format(
+                                it, batch_loss, np.mean(val_perplexity)))
             logging.info("Training is over!")
         except KeyboardInterrupt:
             logging.info('Got Keyboard Interrupt, saving model and closing.')

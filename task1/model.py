@@ -69,18 +69,17 @@ def build_model(sentences, pad_ind, mode, **config):
 
         def step(i, h_prev, s, x, logits):
             if mode == Mode.PRED:
-                def cond_true(s):
+                def cond_true():
                     xi = tf.gather(x, i, axis=1)
                     return xi
 
-                def cond_false(h_prev, embeddings, s):
+                def cond_false():
                     max_likelihood_prev_ind = tf.argmax(h_prev, axis=1)
                     xprev = tf.gather(embeddings, max_likelihood_prev_ind)
                     return xprev
 
                 xnext = tf.cond(tf.less(i, tf.shape(sentences)[1]),
-                                lambda: cond_true(s),
-                                lambda: cond_false(h_prev, embeddings, s))
+                                cond_true, cond_false)
             else:
                 xnext = tf.gather(x, i, axis=1)
 
