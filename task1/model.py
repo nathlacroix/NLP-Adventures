@@ -13,6 +13,7 @@ def build_model(sentences, pad_ind, mode, **config):
         sentences: A `Tensor` of shape `[B, N]` (where B is the batch size
             and N the sentence length and can change dynamically) containing the indices
             of the words (type `tf.int32`).
+        pad_ind: int corresponding to the index of the padding token.
         mode: The graph mode (type `Mode`).
         config: A configuration dictionary.
 
@@ -57,6 +58,8 @@ def build_model(sentences, pad_ind, mode, **config):
     else:
         raise ValueError('state_size parameter not found in config.')
 
+    # Note: sentence_size corresponds to the length of the output sentence. Do not mix up with sentences_length which
+    # correspond to the true lengths of the sentences (without padding).
     if 'sentence_size' in config:
         sentence_size = config['sentence_size']
     else:
@@ -87,24 +90,22 @@ def build_model(sentences, pad_ind, mode, **config):
             if mode == Mode.PRED:
                 def cond_true(s):
                     xi = tf.gather(x, i, axis=1)
-                    h_new, state_new = lstm(xi, s)
-                    return h_new, state_new
+                    return xi
 
                 def cond_false(h_prev, embeddings, s):
-                    max_likelihood_prev_ind = tf.argmax(tf.nn.softmax(h_prev), axis=1)
-                    h_new, state_new = lstm(tf.gather(embeddings, max_likelihood_prev_ind), s)
-                    return h_new, state_new
+                    max_likelihood_prev_ind = tf.argmax(h_prev, axis=1)
+                    xprev = tf.gather(embeddings, max_likelihood_prev_ind)
+                    return xprev
 
-                h_new, state_new = tf.cond(tf.less(i, tf.shape(sentences)[1]),
+                xnext = tf.cond(tf.less(i, tf.shape(sentences)[1]),
                                            lambda: cond_true(s),
                                            lambda: cond_false(h_prev, embeddings, s))
-                logits = tf.concat([logits, tf.expand_dims(h_new, axis=1)], axis=1)
             else:
-                xi = tf.gather(x, i, axis=1)
-                h_new, state_new = lstm(xi, s)
-                logits = tf.concat([logits, tf.expand_dims(h_new, axis=1)], axis=1)
+                xnext = tf.gather(x, i, axis=1)
 
+            h_new, state_new = lstm(xnext, s)
 
+            logits = tf.concat([logits, tf.expand_dims(h_new, axis=1)], axis=1)
             return i + 1, h_new, state_new, x, logits
 
         # Dynamic while loop. Note: the logits are already downprojected
@@ -119,18 +120,17 @@ def build_model(sentences, pad_ind, mode, **config):
                                                                  tf.TensorShape([None, None, vocab_size])))
 
     if mode == Mode.TRAIN:
-        train_loss = compute_loss(sentences, logits, pad_ind, batch_normalize=True)
-        return tf.reduce_sum(train_loss), embeddings
+        train_loss = compute_loss(sentences, logits, pad_ind)
+        return tf.reduce_mean(train_loss), embeddings
 
     if mode == Mode.EVAL:
-        eval_loss = compute_loss(sentences, logits, pad_ind, batch_normalize=False)
+        eval_loss = compute_loss(sentences, logits, pad_ind)
         perplexity = tf.exp(eval_loss)
         return perplexity
 
     if mode == Mode.PRED:
-        prob = tf.nn.softmax(logits) # is axis -1 ok ?
-        max_likelihood = tf.reduce_max(prob, axis=2)
-        return max_likelihood
+        max_likelihood_pred = tf.argmax(logits, axis=2)
+        return max_likelihood_pred
 
 
 def mask_padding(pad_ind, input_tensor, labels):
@@ -148,26 +148,17 @@ def mask_padding(pad_ind, input_tensor, labels):
         sentences_length:
             A `Tensor` (type `tf.float32`, shape `[B]`) containing the lengths of the non-padded sentences.
     """
-
     mask = tf.not_equal(labels, pad_ind)
     mask = tf.cast(mask, tf.float32)
     sentences_length = tf.reduce_sum(mask, axis=1)
-
     return tf.multiply(input_tensor, mask), sentences_length
 
-def compute_loss(labels, output, pad_ind, batch_normalize=False, loss_function=None):
+def compute_loss(labels, output, pad_ind, loss_function=None):
     if loss_function is not None:
         loss = loss_function(labels, output)
     else:
         loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=output)
 
     loss, sentences_length = mask_padding(pad_ind, loss, labels)
-
-    if batch_normalize:
-        # loss = reduced on batch dim loss / (batch size * sentence length)
-        loss = tf.divide(tf.reduce_sum(loss, axis=1),
-                         tf.multiply(tf.cast(tf.shape(labels)[0], tf.float32), sentences_length))
-    else:
-        loss = tf.divide(tf.reduce_sum(loss, axis=1), sentences_length)
-
+    loss = tf.divide(tf.reduce_sum(loss, axis=1), sentences_length)
     return loss
