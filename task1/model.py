@@ -58,9 +58,10 @@ def build_model(sentences, pad_ind, mode, **config):
 
         lstm = tf.contrib.rnn.LSTMCell(
                 state_size,
-                initializer=tf.contrib.layers.xavier_initializer(seed=seed),
-                num_proj=vocab_size)
-        h_0 = tf.zeros((batch_size, vocab_size))
+                initializer=tf.contrib.layers.xavier_initializer(seed=seed))
+        W_proj = tf.get_variable('Projection_weights', shape=[vocab_size, state_size],
+                                 initializer=tf.contrib.layers.xavier_initializer(seed=seed))
+        h_0 = tf.zeros((batch_size, state_size))
         c_0 = tf.zeros((batch_size, state_size))
         state = tf.contrib.rnn.LSTMStateTuple(c_0, h_0)
         logits = tf.zeros(tf.stack([tf.shape(sentences)[0], tf.constant(0),
@@ -84,36 +85,39 @@ def build_model(sentences, pad_ind, mode, **config):
                 xnext = tf.gather(x, i, axis=1)
 
             h_new, state_new = lstm(xnext, s)
+            print(tf.shape(h_new))
+            projected = tf.matmul(h_new, tf.transpose(W_proj))
 
-            logits = tf.concat([logits, tf.expand_dims(h_new, axis=1)], axis=1)
+            logits = tf.concat([logits, tf.expand_dims(projected, axis=1)], axis=1)
             return i + 1, h_new, state_new, x, logits
 
         # Dynamic while loop. Note: the logits are already downprojected
         _, _, state, _, logits = tf.while_loop(
-                lambda i, h_prev, s, x, logits: tf.less(i, sentence_size),
+                lambda i, h_prev, s, x, logits: tf.less(i, sentence_size-1),  # should not feed "eos in network"
                 step,
                 (i, h_0, state, word_embeddings, logits),
                 shape_invariants=(
                     tf.TensorShape([]),
-                    tf.TensorShape([None, vocab_size]),
+                    tf.TensorShape([None, state_size]),
                     tf.contrib.rnn.LSTMStateTuple(
                         tf.TensorShape([None, state_size]),
-                        tf.TensorShape([None, vocab_size])),
+                        tf.TensorShape([None, state_size])),
                     tf.TensorShape([None, None, embedding_size]),
                     tf.TensorShape([None, None, vocab_size])))
 
     if mode == Mode.TRAIN:
-        train_loss = compute_loss(sentences, logits, pad_ind)
+        train_loss = compute_loss(sentences[:,1:], logits, pad_ind)
         return tf.reduce_mean(train_loss), embeddings
 
     if mode == Mode.EVAL:
-        eval_loss = compute_loss(sentences, logits, pad_ind)
+        eval_loss = compute_loss(sentences[:, 1:], logits, pad_ind)
         perplexity = tf.exp(eval_loss)
         return perplexity
 
     if mode == Mode.PRED:
+
         max_likelihood_pred = tf.argmax(logits, axis=2)
-        return max_likelihood_pred
+        return tf.concat([tf.expand_dims(sentences[:,0], axis=1), tf.cast(max_likelihood_pred, tf.int32)], axis=1)
 
 
 def mask_padding(pad_ind, input_tensor, labels):
