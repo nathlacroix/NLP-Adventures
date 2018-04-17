@@ -1,0 +1,13 @@
+random_seed: 0
+vocab_size: 20000
+validation_size: 1000
+state_size: 512
+sentence_size: 30
+embedding_size: 100
+use_external_embedding: False
+embedding_name: "wordembeddings-dim100.word2vec"
+batch_size: 64
+num_iter: 100000
+learning_rate: 0.001
+validation_interval: 100
+log_dir: "./logs"

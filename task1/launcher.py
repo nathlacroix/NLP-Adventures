@@ -56,7 +56,7 @@ def load_embedding(data_path, dictionary, config):
             external_embedding[idx] = np.random.uniform(low=-0.25,
                                                         high=0.25,
                                                         size=config['embedding_size'])
-    return np.transpose(external_embedding)
+    return external_embedding
 
 
 def _train(data_path, exp_name, config):
