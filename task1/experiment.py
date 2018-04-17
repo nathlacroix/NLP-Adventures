@@ -121,6 +121,7 @@ def eval(data, pad_ind, exp_dir, **config):
         for p in perplexities:
             writer.write(str(p) + '\n')
     logging.info("Evaluation is over!")
+    logging.info("Average perplexity: {}".format(np.mean(perplexities)))
     logging.info("Evaluation saved in " + path)
 
 
