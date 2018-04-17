@@ -99,12 +99,22 @@ def eval(data, pad_ind, exp_dir, **config):
         exp_dir: path of the log directory for this experiment
         config: A configuration dictionary.
     """
-    x = tf.placeholder(tf.int32, [None, data.shape[1]], 'sentences')
+    # Prepare batches
+    (M, N) = data.shape
+    x = tf.placeholder(tf.int32, [None, N], 'sentences')
+    batches = [data[beg:(beg+config['batch_size']), :]
+               for beg in range(0, M, config['batch_size'])]
+    # List of np.array of size 'batch_size' x N
+    # (except for the last batch, which can be smaller)
+
     perplexities_op = build_model(x, pad_ind, Mode.EVAL, **config)
     saver = tf.train.Saver()
+    perplexities = []
     with tf.Session() as sess:
         saver.restore(sess, os.path.join(exp_dir, "models/model.ckpt"))
-        perplexities = sess.run(perplexities_op, feed_dict={x: data})
+        for x_batches in batches:
+            perplexity_batch = sess.run(perplexities_op, feed_dict={x: x_batches})
+            perplexities += perplexity_batch.tolist()
 
     path = os.path.join(exp_dir, "outputs/group27.perplexity")
     with open(path, 'w') as writer:
