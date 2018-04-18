@@ -1,6 +1,5 @@
 random_seed: 0
 vocab_size: 20000
-validation_size: 1000
 state_size: 1024
 down_proj_size: 512
 sentence_size: 30
