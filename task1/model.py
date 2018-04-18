@@ -45,7 +45,8 @@ def build_model(sentences, pad_ind, mode, **config):
     embedding_size = config['embedding_size']
     state_size = config['state_size']
     sentence_size = config['sentence_size']
-    seed = config.get('seed', None)
+    down_proj_size = config.get('down_proj_size', None)
+    seed = config.get('random_seed', None)
 
     batch_size = tf.shape(sentences)[0]
 
@@ -59,8 +60,17 @@ def build_model(sentences, pad_ind, mode, **config):
         lstm = tf.contrib.rnn.LSTMCell(
                 state_size,
                 initializer=tf.contrib.layers.xavier_initializer(seed=seed))
-        W_proj = tf.get_variable('Projection_weights', shape=[vocab_size, state_size],
-                                 initializer=tf.contrib.layers.xavier_initializer(seed=seed))
+
+        if down_proj_size is not None:
+            W_down_proj = tf.get_variable(
+                    'Down_proj_weights', shape=[down_proj_size, state_size],
+                    initializer=tf.contrib.layers.xavier_initializer(seed=seed))
+        else:
+            down_proj_size = state_size
+
+        W_softmax = tf.get_variable(
+                'Softmax_weights', shape=[vocab_size, down_proj_size],
+                initializer=tf.contrib.layers.xavier_initializer(seed=seed))
         h_0 = tf.zeros((batch_size, state_size))
         c_0 = tf.zeros((batch_size, state_size))
         state = tf.contrib.rnn.LSTMStateTuple(c_0, h_0)
@@ -85,15 +95,21 @@ def build_model(sentences, pad_ind, mode, **config):
                 xnext = tf.gather(x, i, axis=1)
 
             h_new, state_new = lstm(xnext, s)
-            print(tf.shape(h_new))
-            projected = tf.matmul(h_new, tf.transpose(W_proj))
 
-            logits = tf.concat([logits, tf.expand_dims(projected, axis=1)], axis=1)
+            if config.get('down_proj_size', None) is not None:
+                down_projection = tf.matmul(h_new, tf.transpose(W_down_proj))
+            else:
+                down_projection = h_new
+
+            logit = tf.matmul(down_projection, tf.transpose(W_softmax))
+            logits = tf.concat([logits, tf.expand_dims(logit, axis=1)], axis=1)
             return i + 1, h_new, state_new, x, logits
 
-        # Dynamic while loop. Note: the logits are already downprojected
+        # Dynamic while loop.
+        # Note: the logits are already downprojected.
+        # We do not predict <bos> and do not feed <eos> as input.
         _, _, state, _, logits = tf.while_loop(
-                lambda i, h_prev, s, x, logits: tf.less(i, sentence_size-1),  # should not feed "eos in network"
+                lambda i, h_prev, s, x, logits: tf.less(i, sentence_size-1),
                 step,
                 (i, h_0, state, word_embeddings, logits),
                 shape_invariants=(
@@ -106,7 +122,7 @@ def build_model(sentences, pad_ind, mode, **config):
                     tf.TensorShape([None, None, vocab_size])))
 
     if mode == Mode.TRAIN:
-        train_loss = compute_loss(sentences[:,1:], logits, pad_ind)
+        train_loss = compute_loss(sentences[:, 1:], logits, pad_ind)
         return tf.reduce_mean(train_loss), embeddings
 
     if mode == Mode.EVAL:
@@ -117,7 +133,8 @@ def build_model(sentences, pad_ind, mode, **config):
     if mode == Mode.PRED:
 
         max_likelihood_pred = tf.argmax(logits, axis=2)
-        return tf.concat([tf.expand_dims(sentences[:,0], axis=1), tf.cast(max_likelihood_pred, tf.int32)], axis=1)
+        return tf.concat([tf.expand_dims(sentences[:, 0], axis=1),
+                          tf.cast(max_likelihood_pred, tf.int32)], axis=1)
 
 
 def mask_padding(pad_ind, input_tensor, labels):

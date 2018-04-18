@@ -1,10 +1,11 @@
 import collections
 import itertools
+import random
 from pathlib import Path
 
 _default_config = {
         'vocab_size': 20000,
-        'validation_size': 100,
+        'validation_size': None,
         'sentence_size': 30,
         'random_seed': 0,
         'eval_file': 'sentences.test',
@@ -83,5 +84,10 @@ def get_dataset(data_path, **user_config):
     test_data = _convert_words_to_indices(_parse_file(test_path, config), word2idx)
     pred_data = _convert_words_to_indices(
             _parse_file(pred_path, config, add_end_token=False, pad=False), word2idx)
+
+    random.Random(config['random_seed']).shuffle(train_data)
+    random.Random(config['random_seed']).shuffle(val_data)
+    if config['validation_size'] is not None:
+        val_data = val_data[:config['validation_size']]
 
     return vocabulary, train_data, val_data, test_data, pred_data
