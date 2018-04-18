@@ -1,6 +1,5 @@
 import collections
 import itertools
-import random
 from pathlib import Path
 
 _default_config = {
@@ -8,6 +7,7 @@ _default_config = {
         'validation_size': 100,
         'sentence_size': 30,
         'random_seed': 0,
+        'eval_file': 'sentences.test',
 }
 
 tokens = {
@@ -68,7 +68,8 @@ def get_dataset(data_path, **user_config):
     config.update(user_config)
 
     train_path = Path(data_path, 'sentences.train')
-    test_path = Path(data_path, 'sentences.eval')
+    val_path = Path(data_path, 'sentences.eval')
+    test_path = Path(data_path, config['eval_file'])
     pred_path = Path(data_path, 'sentences.continuation')
 
     # Build vocabulary
@@ -78,13 +79,9 @@ def get_dataset(data_path, **user_config):
 
     # Convert to indices
     train_data = _convert_words_to_indices(train_data, word2idx)
+    val_data = _convert_words_to_indices(_parse_file(val_path, config), word2idx)
     test_data = _convert_words_to_indices(_parse_file(test_path, config), word2idx)
     pred_data = _convert_words_to_indices(
             _parse_file(pred_path, config, add_end_token=False, pad=False), word2idx)
-
-    # Shuffle train set and create validation split
-    random.Random(config['random_seed']).shuffle(train_data)
-    val_data = train_data[:config['validation_size']]
-    train_data = train_data[config['validation_size']:]
 
     return vocabulary, train_data, val_data, test_data, pred_data

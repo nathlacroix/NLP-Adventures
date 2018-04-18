@@ -26,6 +26,8 @@ def train(train_data, val_data, external_embedding, pad_ind, exp_dir, **config):
     x = tf.placeholder(tf.int32, [None, N], 'sentences')
     batches = [train_data[beg:(beg+config['batch_size']), :]
                for beg in range(0, M, config['batch_size'])]
+    val_batches = [val_data[beg:(beg+config['batch_size']), :]
+                   for beg in range(0, val_data.shape[0], config['batch_size'])]
     # List of np.array of size 'batch_size' x N
     # (except for the last batch, which can be smaller)
     n_batches = len(batches)
@@ -48,8 +50,6 @@ def train(train_data, val_data, external_embedding, pad_ind, exp_dir, **config):
 
     with tf.name_scope("validation"):
         perplexities_op = build_model(x, pad_ind, Mode.EVAL, **config)
-        summary_val = tf.summary.scalar('validation_perplexity',
-                                        tf.reduce_mean(perplexities_op))
 
     train_writer = tf.summary.FileWriter(os.path.join(exp_dir,
                                                       "summaries/train"))
@@ -72,14 +72,23 @@ def train(train_data, val_data, external_embedding, pad_ind, exp_dir, **config):
                                                   feed_dict={x: x_batch})
                 if it % config['validation_interval'] == 0:
                     train_writer.add_summary(summary, it)
-                    val_perplexity, summary_eval = sess.run([perplexities_op,
-                                                             summary_val],
-                                                            feed_dict={x: val_data})
-                    test_writer.add_summary(summary_eval, it)
+                    # Perform batch validation
+                    val_perplexities = []
+                    for val_batch in val_batches:
+                        val_perplexity = sess.run(perplexities_op,
+                                                  feed_dict={x: val_batch})
+                        val_perplexities += val_perplexity.tolist()
+                    val_perplexity = np.mean(val_perplexities)
+
+                    # Create a summary averaging the whole validation dataset
+                    val_summary = tf.Summary()
+                    val_summary.value.add(tag="validation_perplexity",
+                                          simple_value=val_perplexity)
+                    test_writer.add_summary(val_summary, it)
                     tf.logging.info(
                             'Iter {:4d}: Loss {:.4f}: '
                             'Validation perplexity {:.4f}'.format(
-                                it, batch_loss, np.mean(val_perplexity)))
+                                it, batch_loss, val_perplexity))
             logging.info("Training is over!")
         except KeyboardInterrupt:
             logging.info('Got Keyboard Interrupt, saving model and closing.')

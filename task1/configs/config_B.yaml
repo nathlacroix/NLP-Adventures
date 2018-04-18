@@ -11,3 +11,4 @@ num_iter: 100000
 learning_rate: 0.001
 validation_interval: 100
 log_dir: "./logs"
+eval_file: 'sentences.test'
