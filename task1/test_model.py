@@ -7,9 +7,10 @@ from model import build_model, Mode
 if __name__ == '__main__':
     config = {
             'vocab_size': 20000,
-            'state_size': 512,
+            'state_size': 1024,
             'embedding_size': 100,
             'sentence_size': 30,
+            'down_proj_size': 512
     }
     batch_size = 12
     pad_ind = 178 # random
