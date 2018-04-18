@@ -11,7 +11,8 @@ The code will create (if it doesn't already exist) a folder `logs/` in which 3 f
 
 All the data should be in the same folder and its path is chosen by the user in the arguments of the launcher. The following files have to be present in the data folder:
 - `sentences.train`: training data.
-- `sentences.eval`: test data. The network will output the perplexity of every sentence.
+- `sentences.eval`: validation data. The network will evaluate the perplexity of every sentence. If you want to perform evaluation on this dataset instead of `sentences.test`, modify the entry 'eval_file' in the config file.
+- `sentences.test`: test data. The network will output the perplexity of every sentence.
 - `sentences.continuation`: data for generation. The network will predict the end of every sentence up to a certain point (chosen by the user in the config file).
 - `wordembeddings-dim100.word2vec`: (optional: only if the user wants to use a pretrained embedding) data containing a pretrained embedding. The name of this file can be modified in the config file.
 
