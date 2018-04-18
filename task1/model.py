@@ -45,7 +45,8 @@ def build_model(sentences, pad_ind, mode, **config):
     embedding_size = config['embedding_size']
     state_size = config['state_size']
     sentence_size = config['sentence_size']
-    seed = config.get('seed', None)
+    down_proj_size = config.get('down_proj_size', None)
+    seed = config.get('random_seed', None)
 
     batch_size = tf.shape(sentences)[0]
 
@@ -59,8 +60,15 @@ def build_model(sentences, pad_ind, mode, **config):
         lstm = tf.contrib.rnn.LSTMCell(
                 state_size,
                 initializer=tf.contrib.layers.xavier_initializer(seed=seed))
-        W_proj = tf.get_variable('Projection_weights', shape=[vocab_size, state_size],
-                                 initializer=tf.contrib.layers.xavier_initializer(seed=seed))
+
+        if down_proj_size is not None:
+            W_down_proj = tf.get_variable('Down_proj_weights', shape=[down_proj_size, state_size],
+                                          initializer=tf.contrib.layers.xavier_initializer(seed=seed))
+        else:
+            down_proj_size = state_size
+
+        W_softmax = tf.get_variable('Softmax_weights', shape=[vocab_size, down_proj_size],
+                                    initializer=tf.contrib.layers.xavier_initializer(seed=seed))
         h_0 = tf.zeros((batch_size, state_size))
         c_0 = tf.zeros((batch_size, state_size))
         state = tf.contrib.rnn.LSTMStateTuple(c_0, h_0)
@@ -85,10 +93,15 @@ def build_model(sentences, pad_ind, mode, **config):
                 xnext = tf.gather(x, i, axis=1)
 
             h_new, state_new = lstm(xnext, s)
-            print(tf.shape(h_new))
-            projected = tf.matmul(h_new, tf.transpose(W_proj))
 
-            logits = tf.concat([logits, tf.expand_dims(projected, axis=1)], axis=1)
+            if config.get('down_proj_size', None) is not None:
+                down_projection = tf.matmul(h_new, tf.transpose(W_down_proj))
+            else:
+                down_projection = h_new
+
+            #down_projection = tf.Print(down_projection,[tf.shape(down_projection)], message='Shape Downprojection: ')
+            softmaxed = tf.matmul(down_projection, tf.transpose(W_softmax))
+            logits = tf.concat([logits, tf.expand_dims(softmaxed, axis=1)], axis=1)
             return i + 1, h_new, state_new, x, logits
 
         # Dynamic while loop. Note: the logits are already downprojected
