@@ -85,7 +85,14 @@ def build_model(sentences, pad_ind, mode, **config):
                     return xi
 
                 def cond_false():
-                    max_likelihood_prev_ind = tf.argmax(h_prev, axis=1)
+                    if config.get('down_proj_size', None) is not None:
+                        down_projection = tf.matmul(h_prev, tf.transpose(W_down_proj))
+                    else:
+                        down_projection = h_prev
+
+                    max_likelihood_prev_ind = tf.argmax(tf.matmul(down_projection,
+                                                                      tf.transpose(W_softmax)),
+                                                        axis=1)
                     xprev = tf.gather(embeddings, max_likelihood_prev_ind)
                     return xprev
 
