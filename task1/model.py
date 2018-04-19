@@ -134,7 +134,7 @@ def build_model(sentences, pad_ind, mode, **config):
 
         max_likelihood_pred = tf.argmax(logits, axis=2)
         return tf.concat([sentences[:],
-                          tf.cast(max_likelihood_pred[:, tf.shape(sentences)[1] - 1 :], tf.int32)], axis=1), max_likelihood_pred
+                          tf.cast(max_likelihood_pred[:, tf.shape(sentences)[1] - 1 :], tf.int32)], axis=1)
 
 
 def mask_padding(pad_ind, input_tensor, labels):
