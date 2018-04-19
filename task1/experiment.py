@@ -8,6 +8,11 @@ import tensorflow as tf  # noqa: E402
 from model import build_model, Mode  # noqa: E402
 
 
+def set_seed(seed):
+    tf.set_random_seed(seed)
+    np.random.seed(seed)
+
+
 def train(train_data, val_data, external_embedding, pad_ind, exp_dir, **config):
     """ Train the model on the data.
 
@@ -20,6 +25,7 @@ def train(train_data, val_data, external_embedding, pad_ind, exp_dir, **config):
         exp_dir: path of the log directory for this experiment.
         config: A configuration dictionary.
     """
+    set_seed(config['random_seed'])
     # Prepare batches
     (M, N) = train_data.shape
     np.random.shuffle(train_data)
@@ -108,6 +114,7 @@ def eval(data, pad_ind, exp_dir, **config):
         exp_dir: path of the log directory for this experiment
         config: A configuration dictionary.
     """
+    set_seed(config['random_seed'])
     # Prepare batches
     (M, N) = data.shape
     x = tf.placeholder(tf.int32, [None, N], 'sentences')
@@ -147,6 +154,7 @@ def pred(data, dictionary, pad_ind, exp_dir, **config):
         exp_dir: path of the log directory for this experiment
         config: A configuration dictionary.
     """
+    set_seed(config['random_seed'])
     x = tf.placeholder(tf.int32, [None, None], 'sentences')
     prediction_op = build_model(x, pad_ind, Mode.PRED, **config)
     saver = tf.train.Saver()

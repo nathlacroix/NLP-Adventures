@@ -3,15 +3,9 @@ import os
 import argparse
 from gensim import models
 import numpy as np
-import tensorflow as tf
 
 from dataset import get_dataset
 from experiment import train, eval, pred
-
-
-def set_seed(seed):
-    tf.set_random_seed(seed)
-    np.random.seed(seed)
 
 
 def _initialize_structure(data_path, exp_name, config):
@@ -61,7 +55,6 @@ def load_embedding(data_path, dictionary, config):
 
 def _train(data_path, exp_name, config):
     exp_dir = _initialize_structure(data_path, exp_name, config)
-    set_seed(config['random_seed'])
     datasets = get_dataset(data_path, **config)
     dictionary = datasets[0]
     train_data = np.array(datasets[1])
@@ -91,7 +84,6 @@ def _eval(data_path, exp_name, config):
                         " has to be trained first!" +
                         " Please train the model before evaluating it.")
 
-    set_seed(config['random_seed'])
     datasets = get_dataset(data_path, **config)
     dictionary = datasets[0]
     test_data = np.array(datasets[3])
@@ -115,7 +107,6 @@ def _pred(data_path, exp_name, config):
                         " has to be trained first!" +
                         " Please train the model before doing a prediction.")
 
-    set_seed(config['random_seed'])
     datasets = get_dataset(data_path, **config)
     dictionary = datasets[0]
     pred_data = datasets[4]
