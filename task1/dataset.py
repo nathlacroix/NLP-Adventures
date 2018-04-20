@@ -22,6 +22,7 @@ tokens = {
 def _parse_file(filename, config, add_end_token=True, pad=True):
     with open(filename, 'r') as f:
         sentences = f.read().split('\n')
+    sentences = sentences[:-1]  # last line is empty
     sentences = [s.split() for s in sentences]  # split into words
     sentences = [[tokens['start']] + s for s in sentences]
     if add_end_token:
