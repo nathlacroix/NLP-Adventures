@@ -21,3 +21,5 @@ All the data should be in the same folder and its path is chosen by the user in 
 
 `<command>` can be of three kinds: `train` to train the network, `evaluate` to evaluate on a test set with the perplexity or `predict` to generate the end of the sentences provided in the data.
 The training, testing and predicting steps have to be done separately with a different command each time. To do testing or prediction, a training with the same name of experiment has to be done before.
+
+Examples of config files are stored in `task1/configs` for experiments A, B and C and the prediction using model C.
