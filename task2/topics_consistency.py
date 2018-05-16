@@ -71,10 +71,13 @@ if __name__ == '__main__':
     parser.add_argument('data_path', type=str,
                         help="path to the stories")
     parser.add_argument('output_path', type=str, help="path to the output file")
+    parser.add_argument('--glove', type=str, help="path to folder of GloVe vectors")
     args = parser.parse_args()
 
     # Set up spacy
-    nlp = spacy.load('en', disable=['parser', 'ner'])  # 'en_core_web_lg' is better
+    nlp = spacy.load('en_core_web_lg', disable=['parser', 'ner'])
+    if args.glove:
+        nlp.vocab.vectors.from_glove(args.glove)
 
     # Load the stories, process them and compute their word embedding
     print("Loading stories...")
