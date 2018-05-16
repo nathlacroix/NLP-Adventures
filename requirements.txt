@@ -2,3 +2,5 @@ numpy
 pyyaml
 flake8
 gensim
+sklearn
+spacy
