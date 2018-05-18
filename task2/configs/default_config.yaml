@@ -1,0 +1,3 @@
+features: ['events', 'sentiment', 'topic']
+validation_ratio: 0.15
+random_seed: 42
