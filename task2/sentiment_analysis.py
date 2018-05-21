@@ -1,1 +1,338 @@
+import numpy as np
+import spacy
+import argparse
+import csv
+import os
+import datetime as tm
+from pathlib import Path
 
+sentiment_files_path_dict = {'negative': '/home/nathan/NLP-Adventures/task2' \
+                                         '/ressources/sentiment_lexica/negative_words.txt',
+                             'positive': '/home/nathan/NLP-Adventures/task2' \
+                                         '/ressources/sentiment_lexica/positive_words.txt',
+                             'mpqa': '/home/nathan/NLP-Adventures/task2' \
+                                     '/ressources/sentiment_lexica/subjective_clues.txt'}
+parsing_instructions = {'beginning': [1],
+                        'body': [2, 3],
+                        'climax': [4],
+                        'ending1': [5],
+                        'ending2': [6]}
+story_struct={'beginning': 0,
+              'body': 1,
+              'climax': 2,
+              'ending': 3,
+              'context': [0, 1, 2]}
+default_probas = [[{'posterior': 'ending', 'prior': 'climax'}, {'posterior': 'body'}, {'posterior': 'beginning'}],
+                  [{'posterior': 'ending', 'prior': 'climax'}, {'posterior': 'beginning'}],
+                  {'posterior': 'ending', 'prior': 'climax'},
+                  {'posterior': 'ending', 'prior': 'context'}]
+
+
+def load_stories(filename, parsing_instructions):
+    """
+    Load the stories from filename and sort them in three
+    dimensions: the 4 first concatenated sentences, the
+    first proposition and the second option.
+    """
+    if(not Path(filename).exists()):
+        raise Exception(filename + " cannot be found. Aborting.")
+    stories = []
+    with open(filename, 'r') as csvfile:
+        csvfile.readline()  # get rid of the header
+        reader = csv.reader(csvfile, delimiter=',')
+        for row in reader:
+            segmented_story = []
+            for _, sentences in parsing_instructions.items():
+                seg = ''
+                for sentence in sentences:
+                    seg = seg + row[sentence] + ' '
+
+                segmented_story = segmented_story + [seg]
+            stories.append(segmented_story)
+
+    return stories
+
+class SentimentAnalyzer:
+
+    def __init__(self, sentiment_files_path_dict,
+                 probas_wanted=default_probas,
+                 sent_traj_counts_dict={},
+                 combination_of_methods='average',
+                 sent_traj_counts_array_filepath='',
+                 save_traj=True):
+        ''' Note: positive_words & negative words are lists of strings, mpqa_dicts is a list of dict'''
+        try:
+            self.nlp = spacy.load('en_core_web_sm')
+        except OSError:
+            print('ERROR: did you install the spacy language model on your computer?' \
+                  ' If not do it using eg. : python -m spacy download en_core_web_sm')
+        print('INFO: Loading sentiment lists ...')
+        self.positive_words, self.negative_words, self.mpqa_dicts \
+            = self.load_sentiment_lexica(sentiment_files_path_dict)
+        print('INFO: Done.')
+
+        self.sent_traj_counts_dict = sent_traj_counts_dict
+        self.probas_wanted = probas_wanted
+        self.combination_of_methods = combination_of_methods
+        self.sent_traj_counts_array = None
+        self.sent_traj_counts_array_filepath = sent_traj_counts_array_filepath
+        self.save_traj=save_traj
+
+    def load_sentiment_lexica(self, path_dict):
+        positives = self.read_wordlist(path_dict['positive'])
+        negatives = self.read_wordlist(path_dict['negative'])
+        mpqas = self.read_mpqa(path_dict['mpqa'])
+        return positives, negatives, mpqas
+
+    def read_wordlist(self, path):
+        with open(path, mode='r') as wordlist_file:
+            wordlist = []
+            for line in wordlist_file:
+                if line.startswith(';') or line.startswith('\n'):
+                    pass
+                else:
+                    wordlist.append(line[0:-1])
+
+            if wordlist == []:
+                print('WARNING : could not parse {}. No words retrieved.'.format(path))
+
+        return wordlist
+
+    def read_mpqa(self, path):
+        with open(path, mode='r') as file:
+            wordlist = []
+            for line in file:
+                if line.startswith(';') or line.startswith('\n'):
+                    pass
+                else:
+                    splited = line.split(' ')
+                    dict = {}
+                    for arg in splited:
+                        key, value = arg.split('=')
+                        if value.endswith('\n'):
+                            value = value[:-1]
+                        dict[key] = value
+                    wordlist.append(dict)
+
+        return wordlist
+
+    def story2sent(self, story, combination_of_methods=None):
+        story_sent = []
+        if combination_of_methods == None:
+            combination_of_methods = self.combination_of_methods
+        #print(story)
+        for seg in story:
+            pos, neg, pos_mpqa, neg_mpqa = 0, 0, 0, 0
+            seg_parsed = self.nlp(seg)
+
+            for sentence in seg_parsed.sents:
+                negated = self.is_negated(sentence)
+
+                for token in sentence:
+                    if token.pos_ in ['ADV', 'ADP', 'AUX', 'DET', 'NUM', 'PRON', 'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'SPACE']:
+                        continue
+                    if token.lemma_ in self.positive_words:
+                        if negated:
+                            neg = neg + 1
+                        else:
+                            pos = pos + 1
+                    if token.lemma_ in self.negative_words:
+                        if negated:
+                            pos = pos + 1
+                        else:
+                            neg = neg + 1
+
+                    # search if in mpqa list
+                    mpqa_dict = next((dict for dict in self.mpqa_dicts if dict['word1'] == token.lemma_), \
+                                     None)
+                    if mpqa_dict is not None:
+                        if mpqa_dict['priorpolarity'] == 'positive':
+                            if negated:
+                                neg_mpqa = neg_mpqa + 1
+                            else:
+                                pos_mpqa = pos_mpqa + 1
+                        if mpqa_dict['priorpolarity'] == 'negative':
+                            if negated:
+                                pos_mpqa = pos_mpqa + 1
+                            else:
+                                neg_mpqa = neg_mpqa + 1
+
+            seg_sent = pos - neg
+            seg_sent_mpqa = pos_mpqa - neg_mpqa
+            story_sent.append([seg_sent, seg_sent_mpqa])
+
+
+        #print(story_sent)
+        story_sent = self.combine_sentiment_methods(story_sent, combination_of_methods)
+        return story_sent
+
+
+    def is_negated(self, sentence):
+        negation_in_sentence = False
+        for token in sentence:
+            if token.dep_ =='neg':
+                negation_in_sentence = True
+        return negation_in_sentence
+
+    def combine_sentiment_methods(self, story_sent, combination='average'):
+        story_sent = np.asarray(story_sent)
+        if combination == 'average':
+            story_sent = np.sum(story_sent, axis=1)
+        if combination == 'binglui':
+            story_sent = np.sign(story_sent[:,0])
+        if combination == 'mpqa':
+            story_sent = np.sign(story_sent[:, 1])
+
+        return np.sign(story_sent)
+
+    def sent_traj_to_str(self, sent):
+        return " ".join(str(x) for x in sent)
+
+    def train(self, train_stories_list):
+        if Path(self.sent_traj_counts_array_filepath).exists():
+            print("INFO: found file with sentiment trajectories counts in {}." \
+                  " Loading array from file instead of training." \
+                  .format(self.sent_traj_counts_array_filepath))
+            with np.load(self.sent_traj_counts_array_filepath) as data:
+                self.sent_traj_counts_array = data['sent_traj_counts_array']
+        else:
+            print("INFO: Did not find file with pretrained sentiment trajectories." \
+                  "Training ngram model on {} stories" .format(len(train_stories_list)))
+            i = 0
+            for train_story in train_stories_list:
+                i = i + 1
+                if i % 10 == 0:
+                    print("INFO: Processing story {}".format(i))
+                sentiment = self.story2sent(train_story)
+                if self.sent_traj_to_str(sentiment) in self.sent_traj_counts_dict:
+                    self.sent_traj_counts_dict[self.sent_traj_to_str(sentiment)] = \
+                        self.sent_traj_counts_dict[self.sent_traj_to_str(sentiment)] + 1
+                else:
+                    self.sent_traj_counts_dict[self.sent_traj_to_str(sentiment)] = 1
+            i = 0
+
+            for traj, val in self.sent_traj_counts_dict.items():
+                row = np.concatenate((np.fromstring(traj, dtype=np.int, sep=' '),
+                                      np.array([val])))
+                if i == 0:
+                    self.sent_traj_counts_array = row
+                else:
+                    self.sent_traj_counts_array = np.vstack((self.sent_traj_counts_array,
+                                                             row))
+                i = i + 1
+
+            if self.save_traj:
+                try:
+                    np.savez_compressed('/home/nathan/NLP-Adventures/task2/ressources/traj_counts.npz',
+                                        sent_traj_counts_array=self.sent_traj_counts_array)
+                except FileNotFoundError:
+                    f = open('/home/nathan/NLP-Adventures/task2/ressources/traj_counts.npz', 'w')
+                    f.close()
+
+    def predict_proba(self, eval_stories_list, probas_wanted=None):
+        #note: two last columns have to be "ending 1 and ending2"
+        if probas_wanted == None:
+            probas_wanted = self.probas_wanted
+        if self.sent_traj_counts_array is None:
+            raise Exception("Model not trained. Please train model first.")
+        proba_features = []
+        for story in eval_stories_list:
+            story_sent = self.story2sent(story)
+            assert len(story_sent) == self.sent_traj_counts_array.shape[1] #make sure the two endings are in story_sent: note: normally 4 dims in array but + counts = 5
+            for ending in [len(story_sent) - 1, len(story_sent) - 2]:
+                story_proba_features = []
+                masked_sent_story = np.asarray([x for i, x in enumerate(story_sent) if i != ending])
+                for proba in probas_wanted:
+                    if isinstance(proba, list):
+                        product_of_partial_probas = 1
+                        for partial_proba in proba:
+
+                            if 'prior' in partial_proba:
+                                partial_proba_val \
+                                    = self.calc_proba_prior(masked_sent_story,
+                                                            story_struct[partial_proba['posterior']],
+                                                            story_struct[partial_proba['prior']])
+                            else:
+                                partial_proba_val \
+                                    = self.calc_proba_no_prior(masked_sent_story,
+                                                               story_struct[partial_proba['posterior']])
+                            product_of_partial_probas = product_of_partial_probas * partial_proba_val
+                        story_proba_features.append(product_of_partial_probas)
+                    if isinstance(proba, dict):
+                        if 'prior' in proba:
+                            proba_val = self.calc_proba_prior(masked_sent_story,
+                                                              story_struct[proba['posterior']],
+                                                              story_struct[proba['prior']])
+                        else:
+                            proba_val = self.calc_proba_no_prior([x for i,x in enumerate(story_sent) if i!= ending],
+                                                                 story_struct[proba['posterior']])
+                        story_proba_features.append(proba_val)
+                proba_features.append(story_proba_features)
+        proba_features = np.asarray(proba_features).reshape(((-1, 2* (self.sent_traj_counts_array.shape[1]-1))))
+        return proba_features[:, :self.sent_traj_counts_array.shape[1]-1], \
+               proba_features[:, self.sent_traj_counts_array.shape[1]-1:]
+
+    def calc_proba_no_prior(self, sent_story, idx, sent_traj_counts_array=None):
+        if sent_traj_counts_array is None:
+            sent_traj_counts_array = self.sent_traj_counts_array
+
+        masked_sent_array = self.mask_sent_array(sent_traj_counts_array, sent_story[idx], idx)
+
+        if masked_sent_array.size == 0:
+            print('WARNING: could not find the probability')
+            return 0
+        else:
+            return np.sum(masked_sent_array[:,-1]) / np.sum(sent_traj_counts_array[:, -1])
+
+
+    def calc_proba_prior(self, sent_story, sent_idx, prior_idx):
+        masked_sent_array = self.mask_sent_array(self.sent_traj_counts_array,
+                                                 sent_story[prior_idx], prior_idx)
+        return self.calc_proba_no_prior(sent_story, sent_idx, masked_sent_array)
+
+    def mask_sent_array(self, array, value, idx):
+        if isinstance(idx, int):
+            mask = array[:, idx] \
+                          == np.multiply(np.ones(array.shape[0],
+                                                 dtype=np.int), value)
+        else:
+            mask = np.all(array[:, idx] == np.multiply(np.ones((array.shape[0], len(idx)),
+                                                               dtype=np.int), value), axis=1)
+        return array[mask]
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('data_path', type=str,
+                        help="path to the stories")
+    parser.add_argument('output_path', type=str, help="path to the output file")
+    parser.add_argument('--pretrained_traj_path', type=str, help='Path to file containing array' \
+                        'of "counts" of sentiment trajectories')
+    args = parser.parse_args()
+
+    # Load the stories, process them and compute their word embedding
+    print('Loading stories according to parsing instructions: {}'.format(parsing_instructions))
+    stories = load_stories(args.data_path, parsing_instructions)
+    print("Stories loaded.")
+
+    if args.pretrained_traj_path == None:
+        args.pretrained_traj_path = ' '
+    sentiment_analyzer = SentimentAnalyzer(sentiment_files_path_dict,
+                                           sent_traj_counts_array_filepath=args.pretrained_traj_path)
+    start = tm.datetime.now()
+    sentiment_analyzer.train(stories[0:20000])
+    print('Training time: {}' .format(tm.datetime.now() - start))
+    #print(sentiment_analyzer.sent_traj_counts_array)
+
+    start = tm.datetime.now()
+    print('Computing probabilities ...', end='')
+    proba_ending1, proba_ending2 = sentiment_analyzer.predict_proba(stories)
+    # Compute the topic similarity between the endings and the context
+    #print(proba_ending1, proba_ending2)
+    print("Done. Time for prediction: {}" .format(tm.datetime.now() - start))
+
+    # Write the features to a .npz file
+    np.savez_compressed(args.output_path,
+                        sentiment_ending1=proba_ending1,
+                        sentiment_ending2=proba_ending2)
+print("Sentiment features stored in " + str(args.output_path))
