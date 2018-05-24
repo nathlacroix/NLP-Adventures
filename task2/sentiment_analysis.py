@@ -260,7 +260,7 @@ class SentimentAnalyzer:
                                         sent_traj_counts_array=self.sent_traj_counts_array,
                                         sent_condensed_traj_counts_array=self.sent_condensed_traj_counts_array)
                 except FileNotFoundError:
-                    f = open(self.save__traj_dir + '/traj_counts.npz', 'w')
+                    f = open(self.save_traj_dir + '/traj_counts.npz', 'w')
                     f.close()
 
     def predict_proba(self, eval_stories_list, probas_wanted=None):
@@ -274,8 +274,8 @@ class SentimentAnalyzer:
         proba_features = []
         for story in eval_stories_list:
             story_sent = self.story2sent(story, return_normalized=False)
-            print(story)
-            print(story_sent)
+#            print(story)
+#            print(story_sent)
             assert len(story_sent) == self.sent_traj_counts_array.shape[1] #make sure the two endings are in story_sent: note: normally 4 dims in array but + counts = 5
             for ending in [len(story_sent) - 1, len(story_sent) - 2]:
                 story_proba_features = []
@@ -298,7 +298,7 @@ class SentimentAnalyzer:
                     else:
                         proba_val = self.calc_proba_no_prior(np.sign(masked_sent_story),
                                                              story_struct[proba['posterior']])
-                    print("Proba {}: {}" .format(proba, proba_val))
+#                    print("Proba {}: {}" .format(proba, proba_val))
                     story_proba_features.append(proba_val)
                 proba_features.append(story_proba_features)
         proba_features = np.asarray(proba_features).reshape(((-1, 2* (self.sent_traj_counts_array.shape[1]-1))))
