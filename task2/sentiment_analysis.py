@@ -374,7 +374,7 @@ if __name__ == '__main__':
                                            force_retrain=args.force_retrain,
                                            save_traj_dir=save_traj_dir)
     start = tm.datetime.now()
-    sentiment_analyzer.train(train_stories[0:20])
+    sentiment_analyzer.train(train_stories)
     print('Training time: \n{}' .format(tm.datetime.now() - start))
     print('Traj counts: {} \n Traj condensed counts: \n{}'\
             .format(sentiment_analyzer.sent_traj_counts_array,
@@ -382,7 +382,7 @@ if __name__ == '__main__':
 
     start = tm.datetime.now()
     print('Computing probabilities ...')
-    proba_ending1, proba_ending2 = sentiment_analyzer.predict_proba(eval_stories[30:35])
+    proba_ending1, proba_ending2 = sentiment_analyzer.predict_proba(eval_stories)
     binary_features = sentiment_analyzer.generate_bin_features(proba_ending1, proba_ending2)
     # Compute the topic similarity between the endings and the context
     print(proba_ending1, proba_ending2)
