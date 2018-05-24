@@ -256,11 +256,11 @@ class SentimentAnalyzer:
 
             if self.save_traj:
                 try:
-                    np.savez_compressed(self.save_dir + '/traj_counts.npz',
+                    np.savez_compressed(self.save_traj_dir + '/traj_counts.npz',
                                         sent_traj_counts_array=self.sent_traj_counts_array,
                                         sent_condensed_traj_counts_array=self.sent_condensed_traj_counts_array)
                 except FileNotFoundError:
-                    f = open(self.save_dir + '/traj_counts.npz', 'w')
+                    f = open(self.save__traj_dir + '/traj_counts.npz', 'w')
                     f.close()
 
     def predict_proba(self, eval_stories_list, probas_wanted=None):
