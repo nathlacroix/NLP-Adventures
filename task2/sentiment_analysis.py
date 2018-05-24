@@ -364,6 +364,8 @@ if __name__ == '__main__':
 
     if args.save_traj_dir == None:
         save_traj_dir = args.pretrained_traj_path
+    else:
+        save_traj_dir = args.save_traj_dir
     if args.pretrained_traj_path == None:
         args.pretrained_traj_path = ' '
 
