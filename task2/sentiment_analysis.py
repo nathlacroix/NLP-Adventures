@@ -5,11 +5,11 @@ import csv
 import datetime as tm
 from pathlib import Path
 
-sentiment_files_path_dict = {'negative': '$HOME/NLP-Adventures/task2' \
+sentiment_files_path_dict = {'negative': '/cluster/home/lna/NLP-Adventures/task2' \
                                          '/ressources/sentiment_lexica/negative_words.txt',
-                             'positive': '$HOME/NLP-Adventures/task2' \
+                             'positive': '/cluster/home/lna/NLP-Adventures/task2' \
                                          '/ressources/sentiment_lexica/positive_words.txt',
-                             'mpqa': '$HOME/NLP-Adventures/task2' \
+                             'mpqa': '/cluster/home/lna/NLP-Adventures/task2' \
                                      '/ressources/sentiment_lexica/subjective_clues.txt'}
 train_parsing_instructions = {'beginning': [1],
                         'body': [2, 3],
