@@ -37,11 +37,16 @@ def load_features(path, features):
             print(str(data_path) + " cannot be found, skipping it.")
             continue
         with np.load(data_path) as data:
-            feat_array = [data[key] for key in data.files]
-            feat_array = np.stack(feat_array, axis=1)
-            arrays.append(feat_array)
+            if feat == 'sentiment':
+                arrays.append([data[key] for key in data.files])
+            else:
+                feat_array = [data[key] for key in data.files]
+                print(feat_array)
+                feat_array = np.stack(feat_array, axis=1)
+                arrays.append(feat_array)
     if len(arrays) == 0:
         raise Exception("No features found, aborting.")
+    print(np.concatenate(arrays, axis=1))
     return np.concatenate(arrays, axis=1)
 
 
