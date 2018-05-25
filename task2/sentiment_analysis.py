@@ -56,6 +56,28 @@ def load_stories(filename, parsing_instructions):
     return stories
 
 class SentimentAnalyzer:
+    '''
+    Class to perform sentiment analysis on a given dataset.
+    Required arguments for init:
+    -sentiment_files_path_dict: this dict lists the paths to the different lexicons to load
+                                as sentiments references. For the moment this is hard coded into
+                                positive, negative and mpqa.
+    Attributes
+    -probas_wanted:
+        list of probabilities to compute. Default is hard coded list from paper.
+        Has to be coded as list of dicts, where each dict is contains at least the key 'posterior'.
+        If it has also a 'prior', the latter should be either a list if the prior is a joint prior,
+        or simply a value.
+        Values are 'strings' that can be found in story_struct such as "ending", "beginning", etc.
+    -sent_traj_counts_array:
+        array containing the counts of each sentiment trajectory encountered in training.
+        The first columns correspond to the corresponding sentiment of the part of the story,
+        last column indicates the number of occurences of this trajectory.
+    -sent_condensed_traj_counts_array:
+        same as above but with condensed stories (= all context is evaluated at once).
+    -save_traj_dir:
+        directory to save the sent_counts
+    '''
 
     def __init__(self, sentiment_files_path_dict,
                  probas_wanted=default_probas,
@@ -136,11 +158,13 @@ class SentimentAnalyzer:
             seg_parsed = self.nlp(seg)
 
             for sentence in seg_parsed.sents:
-                negated = self.is_negated(sentence)
 
                 for token in sentence:
+
                     if token.pos_ in ['ADV', 'ADP', 'AUX', 'DET', 'NUM', 'PRON', 'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'SPACE']:
                         continue
+
+                    negated = self.is_negated(token)
                     if token.lemma_ in self.positive_words:
                         if negated:
                             neg = neg + 1
@@ -174,12 +198,11 @@ class SentimentAnalyzer:
         return story_sent
 
 
-    def is_negated(self, sentence):
-        negation_in_sentence = False
-        for token in sentence:
-            if token.dep_ =='neg':
-                negation_in_sentence = True
-        return negation_in_sentence
+    def is_negated(self, token):
+        negated_token = False
+        if 'neg' in [child.dep_ for child in token.children]:
+                negated_token = True
+        return negated_token
 
     def combine_sentiment_methods(self, story_sent, combination='average', return_normalized=True):
         story_sent = np.asarray(story_sent)
@@ -198,6 +221,15 @@ class SentimentAnalyzer:
         return " ".join(str(x) for x in sent)
 
     def train(self, train_stories_list):
+        '''
+        This function trains a sentiment_analyzer either by loading precomputed counts arrays
+        or on given training story list.
+        If a saving path has been specified, it will automatically save the counts arrays for next time.
+
+        :param train_stories_list:
+                    list of training stories
+        :return:
+        '''
         if Path(self.sent_traj_counts_arrays_filepath).exists() and not self.force_retrain:
             print("INFO: found file with sentiment trajectories counts in {}." \
                   " Loading array from file instead of training." \
@@ -213,7 +245,7 @@ class SentimentAnalyzer:
                 i = i + 1
                 if i % 10 == 0:
                     print("INFO: Processing story {}".format(i))
-                sentiment = self.story2sent(train_story)
+                sentiment = self.story2sent(train_story[0:50000])
                 sentiment_condensed = self.story2sent(train_story, return_normalized=False)
                 sentiment_condensed = np.sign([np.sum(sentiment_condensed[0:story_struct['ending']]),
                                                sentiment[story_struct['ending']]])
@@ -264,6 +296,12 @@ class SentimentAnalyzer:
                     f.close()
 
     def predict_proba(self, eval_stories_list, probas_wanted=None):
+        '''
+        This function predicts probabilities
+        :param eval_stories_list:
+        :param probas_wanted:
+        :return:
+        '''
         #note: two last columns have to be "ending 1 and ending2"
         if probas_wanted == None:
             probas_wanted = self.probas_wanted
