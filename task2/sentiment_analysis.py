@@ -5,7 +5,13 @@ import csv
 import datetime as tm
 from pathlib import Path
 
-sentiment_files_path_dict = {'negative': '/cluster/home/lna/NLP-Adventures/task2' \
+sentiment_files_path_dict = {'negative': '/home/nathan/NLP-Adventures/task2' \
+                                         '/ressources/sentiment_lexica/negative_words.txt',
+                             'positive': '/home/nathan/NLP-Adventures/task2' \
+                                         '/ressources/sentiment_lexica/positive_words.txt',
+                             'mpqa': '/home/nathan/NLP-Adventures/task2' \
+                                     '/ressources/sentiment_lexica/subjective_clues.txt'}
+sentiment_files_path_dict_cluster = {'negative': '/cluster/home/lna/NLP-Adventures/task2' \
                                          '/ressources/sentiment_lexica/negative_words.txt',
                              'positive': '/cluster/home/lna/NLP-Adventures/task2' \
                                          '/ressources/sentiment_lexica/positive_words.txt',
@@ -295,7 +301,7 @@ class SentimentAnalyzer:
                     f = open(self.save_traj_dir + '/traj_counts.npz', 'w')
                     f.close()
 
-    def predict_proba(self, eval_stories_list, probas_wanted=None):
+    def predict_proba(self, eval_stories_list, probas_wanted=None, predict_neutral=False):
         '''
         This function predicts probabilities
         :param eval_stories_list:
@@ -305,18 +311,29 @@ class SentimentAnalyzer:
         #note: two last columns have to be "ending 1 and ending2"
         if probas_wanted == None:
             probas_wanted = self.probas_wanted
-
         print(probas_wanted)
+
         if self.sent_traj_counts_array is None:
             raise Exception("Model not trained. Please train model first.")
         proba_features = []
+
+        if not predict_neutral:
+            print("Removing neutral endings..." , end='')
+            self.sent_condensed_traj_counts_array = \
+                self.sent_condensed_traj_counts_array[self.sent_condensed_traj_counts_array[:, 1] != 0]
+            self.sent_traj_counts_array = \
+                self.sent_traj_counts_array[self.sent_traj_counts_array[:, story_struct['ending']] != 0]
+            print("Done.")
+
         for story in eval_stories_list:
             story_sent = self.story2sent(story, return_normalized=False)
-#            print(story)
-#            print(story_sent)
+            print(story)
+            print(story_sent)
             assert len(story_sent) == self.sent_traj_counts_array.shape[1] #make sure the two endings are in story_sent: note: normally 4 dims in array but + counts = 5
             for ending in [len(story_sent) - 1, len(story_sent) - 2]:
                 story_proba_features = []
+                # if ending is neutral, send 0 proba back (?!)
+
                 masked_sent_story = np.asarray([x for i, x in enumerate(story_sent) if i != ending])
                 for proba in probas_wanted:
                     if 'prior' in proba:
@@ -420,7 +437,7 @@ if __name__ == '__main__':
 
     start = tm.datetime.now()
     print('Computing probabilities ...')
-    proba_ending1, proba_ending2 = sentiment_analyzer.predict_proba(eval_stories)
+    proba_ending1, proba_ending2 = sentiment_analyzer.predict_proba(eval_stories[-3:])
     binary_features = sentiment_analyzer.generate_bin_features(proba_ending1, proba_ending2)
     # Compute the topic similarity between the endings and the context
     print(proba_ending1, proba_ending2)
