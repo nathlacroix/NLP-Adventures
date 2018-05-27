@@ -170,7 +170,7 @@ class SentimentAnalyzer:
                     if token.pos_ in ['ADV', 'ADP', 'AUX', 'DET', 'NUM', 'PRON', 'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'SPACE']:
                         continue
 
-                    negated = self.is_negated(token)
+                    negated = False #self.is_negated(token)
                     if token.lemma_ in self.positive_words:
                         if negated:
                             neg = neg + 1
@@ -249,9 +249,9 @@ class SentimentAnalyzer:
             i = 0
             for train_story in train_stories_list:
                 i = i + 1
-                if i % 10 == 0:
+                if i % 50 == 0:
                     print("INFO: Processing story {}".format(i))
-                sentiment = self.story2sent(train_story[0:50000])
+                sentiment = self.story2sent(train_story)
                 sentiment_condensed = self.story2sent(train_story, return_normalized=False)
                 sentiment_condensed = np.sign([np.sum(sentiment_condensed[0:story_struct['ending']]),
                                                sentiment[story_struct['ending']]])
@@ -424,12 +424,12 @@ if __name__ == '__main__':
     if args.pretrained_traj_path == None:
         args.pretrained_traj_path = ' '
 
-    sentiment_analyzer = SentimentAnalyzer(sentiment_files_path_dict,
+    sentiment_analyzer = SentimentAnalyzer(sentiment_files_path_dict_cluster,
                                            sent_traj_counts_arrays_filepath=args.pretrained_traj_path,
-                                           force_retrain=args.force_retrain,
+                                           force_retrain= args.force_retrain,
                                            save_traj_path=save_traj_path)
     start = tm.datetime.now()
-    sentiment_analyzer.train(train_stories)
+    sentiment_analyzer.train(train_stories[0:20000])
     print('Training time: \n{}' .format(tm.datetime.now() - start))
     print('Traj counts: {} \n Traj condensed counts: \n{}'\
             .format(sentiment_analyzer.sent_traj_counts_array,
@@ -437,7 +437,7 @@ if __name__ == '__main__':
 
     start = tm.datetime.now()
     print('Computing probabilities ...')
-    proba_ending1, proba_ending2 = sentiment_analyzer.predict_proba(eval_stories[-3:])
+    proba_ending1, proba_ending2 = sentiment_analyzer.predict_proba(eval_stories)
     binary_features = sentiment_analyzer.generate_bin_features(proba_ending1, proba_ending2)
     # Compute the topic similarity between the endings and the context
     print(proba_ending1, proba_ending2)
