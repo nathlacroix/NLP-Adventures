@@ -4,4 +4,5 @@ flake8
 gensim
 sklearn
 spacy
+matplotlib
 

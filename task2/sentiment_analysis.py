@@ -81,8 +81,8 @@ class SentimentAnalyzer:
         last column indicates the number of occurences of this trajectory.
     -sent_condensed_traj_counts_array:
         same as above but with condensed stories (= all context is evaluated at once).
-    -save_traj_dir:
-        directory to save the sent_counts
+    -save_traj_path:
+        path to save the sent_counts
     '''
 
     def __init__(self, sentiment_files_path_dict,
@@ -90,7 +90,7 @@ class SentimentAnalyzer:
                  combination_of_methods='average',
                  sent_traj_counts_arrays_filepath='',
                  save_traj=True,
-                 save_traj_dir=None,
+                 save_traj_path=None,
                  force_retrain=False):
         ''' Note: positive_words & negative words are lists of strings, mpqa_dicts is a list of dict'''
         try:
@@ -109,11 +109,11 @@ class SentimentAnalyzer:
         self.sent_condensed_traj_counts_array = None
         self.sent_traj_counts_arrays_filepath = sent_traj_counts_arrays_filepath
         self.save_traj = save_traj
-        self.save_traj_dir = save_traj_dir
+        self.save_traj_path = save_traj_path
         self.probas_wanted = probas_wanted
         self.combination_of_methods = combination_of_methods
         self.force_retrain=force_retrain
-        if save_traj and save_traj_dir is None:
+        if save_traj and save_traj_path is None:
             print('ERROR: did not specify saving directory for sentiment traj. They will not be saved')
             self.save_traj = False
 
@@ -294,11 +294,11 @@ class SentimentAnalyzer:
 
             if self.save_traj:
                 try:
-                    np.savez_compressed(self.save_traj_dir + '/traj_counts.npz',
+                    np.savez_compressed(self.save_traj_path ,
                                         sent_traj_counts_array=self.sent_traj_counts_array,
                                         sent_condensed_traj_counts_array=self.sent_condensed_traj_counts_array)
                 except FileNotFoundError:
-                    f = open(self.save_traj_dir + '/traj_counts.npz', 'w')
+                    f = open(self.save_traj_path , 'w')
                     f.close()
 
     def predict_proba(self, eval_stories_list, probas_wanted=None, predict_neutral=False):
@@ -404,7 +404,7 @@ if __name__ == '__main__':
     parser.add_argument('output_path', type=str, help="path to the output file")
     parser.add_argument('--pretrained_traj_path', type=str, help='Path to file containing array' \
                         'of "counts" of sentiment trajectories')
-    parser.add_argument('--save_traj_dir', type=str, help="path to store sentiment_trajectories of model." \
+    parser.add_argument('--save_traj_path', type=str, help="path to store sentiment_trajectories of model." \
                         " By default is the same as pretrained_traj_path")
     parser.add_argument('--force_retrain', type=bool)
     args = parser.parse_args()
@@ -417,17 +417,17 @@ if __name__ == '__main__':
     eval_stories = load_stories(args.data_path + '/val_stories.csv', eval_parsing_instructions)
     print("Stories loaded.")
 
-    if args.save_traj_dir == None:
-        save_traj_dir = args.pretrained_traj_path
+    if args.save_traj_path == None:
+        save_traj_path = args.pretrained_traj_path
     else:
-        save_traj_dir = args.save_traj_dir
+        save_traj_path = args.save_traj_path
     if args.pretrained_traj_path == None:
         args.pretrained_traj_path = ' '
 
     sentiment_analyzer = SentimentAnalyzer(sentiment_files_path_dict,
                                            sent_traj_counts_arrays_filepath=args.pretrained_traj_path,
                                            force_retrain=args.force_retrain,
-                                           save_traj_dir=save_traj_dir)
+                                           save_traj_path=save_traj_path)
     start = tm.datetime.now()
     sentiment_analyzer.train(train_stories)
     print('Training time: \n{}' .format(tm.datetime.now() - start))
