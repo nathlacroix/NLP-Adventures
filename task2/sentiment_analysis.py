@@ -156,7 +156,7 @@ class SentimentAnalyzer:
 
         return wordlist
 
-    def story2sent(self, story, combination_of_methods=None, return_normalized=True):
+    def story2sent(self, story, combination_of_methods=None, return_normalized=True, **kwargs):
         story_sent = []
         if combination_of_methods == None:
             combination_of_methods = self.combination_of_methods
@@ -168,7 +168,8 @@ class SentimentAnalyzer:
 
                 for token in sentence:
 
-                    if token.pos_ in ['ADP', 'AUX', 'DET', 'NUM', 'PRON', 'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'SPACE']:
+                    if token.pos_ in ['ADP', 'AUX', 'DET', 'NUM', 'PRON',
+                                      'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'SPACE']:
                         continue
 
                     negated = self.is_negated(token)
@@ -184,7 +185,13 @@ class SentimentAnalyzer:
                             neg = neg + 1
 
                     # search if in mpqa list
-                    mpqa_dict = next((dict for dict in self.mpqa_dicts if dict['word1'] == token.lemma_), \
+                    if kwargs.get('lock_pos', False):
+                        mpqa_dict = next((dict for dict in self.mpqa_dicts
+                                          if (dict['word1'] == token.lemma_
+                                              and (dict['pos1'] == 'anypos' or
+                                                   dict['pos1'] == self.transl(token.pos_)))), None)
+                    else:
+                        mpqa_dict = next((dict for dict in self.mpqa_dicts if dict['word1'] == token.lemma_), \
                                      None)
                     if mpqa_dict is not None:
                         if mpqa_dict['priorpolarity'] == 'positive':
@@ -211,6 +218,17 @@ class SentimentAnalyzer:
                 negated_token = True
         return negated_token
 
+
+    def transl(self, pos):
+        pos_name = {
+            'ADV': 'adverb',
+            'VERB': 'verb',
+            'NOUN': 'noun',
+            'ADJ': 'adj'
+        }
+        return  pos_name.get(pos, 'else')
+
+
     def combine_sentiment_methods(self, story_sent, combination='average', return_normalized=True):
         story_sent = np.asarray(story_sent)
         if combination == 'average':
@@ -227,7 +245,7 @@ class SentimentAnalyzer:
     def sent_traj_to_str(self, sent):
         return " ".join(str(x) for x in sent)
 
-    def train(self, train_stories_list):
+    def train(self, train_stories_list, **kwargs):
         '''
         This function trains a sentiment_analyzer either by loading precomputed counts arrays
         or on given training story list.
@@ -252,9 +270,9 @@ class SentimentAnalyzer:
                 i = i + 1
                 if i % 50 == 0:
                     print("INFO: Processing story {}".format(i))
-                sentiment = self.story2sent(train_story)
+                sentiment = self.story2sent(train_story, **kwargs)
                 print(train_story)
-                sentiment_condensed = self.story2sent(train_story, return_normalized=False)
+                sentiment_condensed = self.story2sent(train_story, return_normalized=False, **kwargs)
                 sentiment_condensed = np.sign([np.sum(sentiment_condensed[0:story_struct['ending']]),
                                                sentiment[story_struct['ending']]])
                 #not condensed
@@ -330,7 +348,7 @@ class SentimentAnalyzer:
         for story in eval_stories_list:
             story_sent = self.story2sent(story, return_normalized=False)
             print(story)
-            print(story_sent)
+            #print(story_sent)
             assert len(story_sent) == self.sent_traj_counts_array.shape[1] #make sure the two endings are in story_sent: note: normally 4 dims in array but + counts = 5
             for ending in [len(story_sent) - 1, len(story_sent) - 2]:
                 story_proba_features = []
@@ -422,10 +440,10 @@ if __name__ == '__main__':
 
     with open(args.config, 'r') as f:
         config = yaml.load(f)
-
+    print("Config: {}".format(config))
     sentiment_analyzer = SentimentAnalyzer(**config)
     start = tm.datetime.now()
-    sentiment_analyzer.train(train_stories[0:20000])
+    sentiment_analyzer.train(train_stories[0:config.get('n_train_max', -1)], **config)
     print('Training time: \n{}' .format(tm.datetime.now() - start))
     print('Traj counts: {} \n Traj condensed counts: \n{}'\
             .format(sentiment_analyzer.sent_traj_counts_array,
