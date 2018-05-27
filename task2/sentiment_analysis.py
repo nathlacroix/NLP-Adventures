@@ -4,6 +4,7 @@ import argparse
 import csv
 import datetime as tm
 from pathlib import Path
+import yaml
 
 sentiment_files_path_dict = {'negative': '/home/nathan/NLP-Adventures/task2' \
                                          '/ressources/sentiment_lexica/negative_words.txt',
@@ -85,13 +86,13 @@ class SentimentAnalyzer:
         path to save the sent_counts
     '''
 
-    def __init__(self, sentiment_files_path_dict,
+    def __init__(self, sentiment_files_path_dict=None,
                  probas_wanted=default_probas,
                  combination_of_methods='mpqa',
-                 sent_traj_counts_arrays_filepath='',
+                 sent_traj_counts_arrays_filepath=' ',
                  save_traj=True,
                  save_traj_path=None,
-                 force_retrain=False):
+                 force_retrain=False, **kwargs):
         ''' Note: positive_words & negative words are lists of strings, mpqa_dicts is a list of dict'''
         try:
             self.nlp = spacy.load('en_core_web_sm')
@@ -167,7 +168,7 @@ class SentimentAnalyzer:
 
                 for token in sentence:
 
-                    if token.pos_ in ['ADV', 'ADP', 'AUX', 'DET', 'NUM', 'PRON', 'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'SPACE']:
+                    if token.pos_ in ['ADP', 'AUX', 'DET', 'NUM', 'PRON', 'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'SPACE']:
                         continue
 
                     negated = self.is_negated(token)
@@ -302,7 +303,7 @@ class SentimentAnalyzer:
                     f = open(self.save_traj_path , 'w')
                     f.close()
 
-    def predict_proba(self, eval_stories_list, probas_wanted=None, predict_neutral=False):
+    def predict_proba(self, eval_stories_list, probas_wanted=None, predict_neutral=False, **kwargs):
         '''
         This function predicts probabilities
         :param eval_stories_list:
@@ -403,11 +404,12 @@ if __name__ == '__main__':
     parser.add_argument('data_path', type=str,
                         help="path to the stories")
     parser.add_argument('output_path', type=str, help="path to the output file")
-    parser.add_argument('--pretrained_traj_path', type=str, help='Path to file containing array' \
-                        'of "counts" of sentiment trajectories')
-    parser.add_argument('--save_traj_path', type=str, help="path to store sentiment_trajectories of model." \
-                        " By default is the same as pretrained_traj_path")
-    parser.add_argument('--force_retrain', type=bool)
+    parser.add_argument('config', type=str, help='path to config file')
+#    parser.add_argument('--pretrained_traj_path', type=str, help='Path to file containing array' \
+#                        'of "counts" of sentiment trajectories')
+#    parser.add_argument('--save_traj_path', type=str, help="path to store sentiment_trajectories of model." \
+#                        " By default is the same as pretrained_traj_path")
+#    parser.add_argument('--force_retrain', type=bool)
     args = parser.parse_args()
 
     # Load the stories, process them and compute their word embedding
@@ -418,17 +420,10 @@ if __name__ == '__main__':
     eval_stories = load_stories(args.data_path + '/val_stories.csv', eval_parsing_instructions)
     print("Stories loaded.")
 
-    if args.save_traj_path == None:
-        save_traj_path = args.pretrained_traj_path
-    else:
-        save_traj_path = args.save_traj_path
-    if args.pretrained_traj_path == None:
-        args.pretrained_traj_path = ' '
+    with open(args.config, 'r') as f:
+        config = yaml.load(f)
 
-    sentiment_analyzer = SentimentAnalyzer(sentiment_files_path_dict_cluster,
-                                           sent_traj_counts_arrays_filepath=args.pretrained_traj_path,
-                                           force_retrain= args.force_retrain,
-                                           save_traj_path=save_traj_path)
+    sentiment_analyzer = SentimentAnalyzer(**config)
     start = tm.datetime.now()
     sentiment_analyzer.train(train_stories[0:20000])
     print('Training time: \n{}' .format(tm.datetime.now() - start))
@@ -438,7 +433,7 @@ if __name__ == '__main__':
 
     start = tm.datetime.now()
     print('Computing probabilities ...')
-    proba_ending1, proba_ending2 = sentiment_analyzer.predict_proba(eval_stories)
+    proba_ending1, proba_ending2 = sentiment_analyzer.predict_proba(eval_stories, **config)
     binary_features = sentiment_analyzer.generate_bin_features(proba_ending1, proba_ending2)
     # Compute the topic similarity between the endings and the context
     print(proba_ending1, proba_ending2)

@@ -1,0 +1,9 @@
+sentiment_files_path_dict:
+  negative: '/home/nathan/NLP-Adventures/task2/ressources/sentiment_lexica/negative_words.txt'
+  positive: '/home/nathan/NLP-Adventures/task2/ressources/sentiment_lexica/positive_words.txt'
+  mpqa: '/home/nathan/NLP-Adventures/task2/ressources/sentiment_lexica/subjective_clues.txt'
+
+save_traj_path: '/home/nathan/NLP-Adventures/task2/ressources/test1.npz'
+force_retrain: False
+predict_neutral: False
+combination_of_methods: 'binglui'
