@@ -17,10 +17,10 @@ sentiment_files_path_dict_cluster = {'negative': '/cluster/home/lna/NLP-Adventur
                                          '/ressources/sentiment_lexica/positive_words.txt',
                              'mpqa': '/cluster/home/lna/NLP-Adventures/task2' \
                                      '/ressources/sentiment_lexica/subjective_clues.txt'}
-train_parsing_instructions = {'beginning': [1],
-                        'body': [2, 3],
-                        'climax': [4],
-                        'ending': [5]}
+train_parsing_instructions = {'beginning': [2],
+                        'body': [3, 4],
+                        'climax': [5],
+                        'ending': [6]}
 eval_parsing_instructions = {'beginning': [1],
                         'body': [2, 3],
                         'climax': [4],
@@ -87,7 +87,7 @@ class SentimentAnalyzer:
 
     def __init__(self, sentiment_files_path_dict,
                  probas_wanted=default_probas,
-                 combination_of_methods='average',
+                 combination_of_methods='mpqa',
                  sent_traj_counts_arrays_filepath='',
                  save_traj=True,
                  save_traj_path=None,
@@ -170,7 +170,7 @@ class SentimentAnalyzer:
                     if token.pos_ in ['ADV', 'ADP', 'AUX', 'DET', 'NUM', 'PRON', 'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'SPACE']:
                         continue
 
-                    negated = False #self.is_negated(token)
+                    negated = self.is_negated(token)
                     if token.lemma_ in self.positive_words:
                         if negated:
                             neg = neg + 1
@@ -252,6 +252,7 @@ class SentimentAnalyzer:
                 if i % 50 == 0:
                     print("INFO: Processing story {}".format(i))
                 sentiment = self.story2sent(train_story)
+                print(train_story)
                 sentiment_condensed = self.story2sent(train_story, return_normalized=False)
                 sentiment_condensed = np.sign([np.sum(sentiment_condensed[0:story_struct['ending']]),
                                                sentiment[story_struct['ending']]])
