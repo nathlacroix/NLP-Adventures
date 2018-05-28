@@ -471,7 +471,7 @@ if __name__ == '__main__':
     print("Config: {}".format(config))
     sentiment_analyzer = SentimentAnalyzer(**config)
     start = tm.datetime.now()
-    sentiment_analyzer.train(train_stories[0:config.get('n_train_max', -1)], **config)
+    sentiment_analyzer.train(train_stories[0:config.get('n_train_max', None)], **config)
     print('Training time: \n{}' .format(tm.datetime.now() - start))
     print('Traj counts: {} \n Traj condensed counts: \n{}'\
             .format(sentiment_analyzer.sent_traj_counts_array,
@@ -479,7 +479,7 @@ if __name__ == '__main__':
 
     start = tm.datetime.now()
     print('Computing probabilities ...')
-    proba_ending1, proba_ending2 = sentiment_analyzer.predict_proba(eval_stories[0:config.get('n_eval_max', -1)], **config)
+    proba_ending1, proba_ending2 = sentiment_analyzer.predict_proba(eval_stories[0:config.get('n_eval_max', None)], **config)
     binary_features = sentiment_analyzer.generate_bin_features(proba_ending1, proba_ending2)
     # Compute the topic similarity between the endings and the context
     print(proba_ending1, proba_ending2)
