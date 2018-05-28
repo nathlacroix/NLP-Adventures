@@ -5,6 +5,7 @@ import csv
 import datetime as tm
 from pathlib import Path
 import yaml
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 sentiment_files_path_dict = {'negative': '/home/nathan/NLP-Adventures/task2' \
                                          '/ressources/sentiment_lexica/negative_words.txt',
@@ -36,7 +37,8 @@ default_probas = [{'posterior': 'ending', 'prior': ['climax', 'body', 'beginning
                   {'posterior': 'ending', 'prior': ['climax', 'body']},
                   {'posterior': 'ending', 'prior': 'climax'},
                   {'posterior': 'ending', 'prior': 'context'}]
-
+vader_pos=.05
+vader_neg=-.05
 
 def load_stories(filename, parsing_instructions):
     """
@@ -92,7 +94,10 @@ class SentimentAnalyzer:
                  sent_traj_counts_arrays_filepath=' ',
                  save_traj=True,
                  save_traj_path=None,
-                 force_retrain=False, **kwargs):
+                 force_retrain=False,
+                 use_vader=False,
+                 vader_pos_threshold=.05,
+                 vader_neg_threshold=-.05, **kwargs):
         ''' Note: positive_words & negative words are lists of strings, mpqa_dicts is a list of dict'''
         try:
             self.nlp = spacy.load('en_core_web_sm')
@@ -114,6 +119,11 @@ class SentimentAnalyzer:
         self.probas_wanted = probas_wanted
         self.combination_of_methods = combination_of_methods
         self.force_retrain=force_retrain
+
+        self.use_vader = use_vader
+        self.vader_pos_threshold = vader_pos_threshold
+        self.vader_neg_threshold = vader_neg_threshold
+
         if save_traj and save_traj_path is None:
             print('ERROR: did not specify saving directory for sentiment traj. They will not be saved')
             self.save_traj = False
@@ -158,58 +168,76 @@ class SentimentAnalyzer:
 
     def story2sent(self, story, combination_of_methods=None, return_normalized=True, **kwargs):
         story_sent = []
+        vader_sent = []
+        analyzer = SentimentIntensityAnalyzer()
         if combination_of_methods == None:
             combination_of_methods = self.combination_of_methods
-        for seg in story:
-            pos, neg, pos_mpqa, neg_mpqa = 0, 0, 0, 0
-            seg_parsed = self.nlp(seg)
 
-            for sentence in seg_parsed.sents:
+        if self.use_vader:
+            for seg in story:
+                vader_sent.append(analyzer.polarity_scores(seg)['compound'])
+            if return_normalized:
+                return self.categorize(vader_sent,
+                                       self.vader_pos_threshold,
+                                       self.vader_neg_threshold)
+            else:
+                return vader_sent
+        else:
+            for seg in story:
+                pos, neg, pos_mpqa, neg_mpqa = 0, 0, 0, 0
+                seg_parsed = self.nlp(seg)
+                for sentence in seg_parsed.sents:
 
-                for token in sentence:
+                    for token in sentence:
 
-                    if token.pos_ in ['ADP', 'AUX', 'DET', 'NUM', 'PRON',
-                                      'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'SPACE']:
-                        continue
+                        if token.pos_ in ['ADP', 'AUX', 'DET', 'NUM', 'PRON',
+                                          'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'SPACE']:
+                            continue
 
-                    negated = self.is_negated(token)
-                    if token.lemma_ in self.positive_words:
-                        if negated:
-                            neg = neg + 1
-                        else:
-                            pos = pos + 1
-                    if token.lemma_ in self.negative_words:
-                        if negated:
-                            pos = pos + 1
-                        else:
-                            neg = neg + 1
-
-                    # search if in mpqa list
-                    if kwargs.get('lock_pos', False):
-                        mpqa_dict = next((dict for dict in self.mpqa_dicts
-                                          if (dict['word1'] == token.lemma_
-                                              and (dict['pos1'] == 'anypos' or
-                                                   dict['pos1'] == self.transl(token.pos_)))), None)
-                    else:
-                        mpqa_dict = next((dict for dict in self.mpqa_dicts if dict['word1'] == token.lemma_), \
-                                     None)
-                    if mpqa_dict is not None:
-                        if mpqa_dict['priorpolarity'] == 'positive':
+                        negated = self.is_negated(token)
+                        if token.lemma_ in self.positive_words:
                             if negated:
-                                neg_mpqa = neg_mpqa + 1
+                                neg = neg + 1
                             else:
-                                pos_mpqa = pos_mpqa + 1
-                        if mpqa_dict['priorpolarity'] == 'negative':
+                                pos = pos + 1
+                        if token.lemma_ in self.negative_words:
                             if negated:
-                                pos_mpqa = pos_mpqa + 1
+                                pos = pos + 1
                             else:
-                                neg_mpqa = neg_mpqa + 1
+                                neg = neg + 1
 
-            seg_sent = pos - neg
-            seg_sent_mpqa = pos_mpqa - neg_mpqa
-            story_sent.append([seg_sent, seg_sent_mpqa])
-        story_sent = self.combine_sentiment_methods(story_sent, combination_of_methods, return_normalized)
+                        # search if in mpqa list
+                        if kwargs.get('lock_pos', False):
+                            mpqa_dict = next((dict for dict in self.mpqa_dicts
+                                              if (dict['word1'] == token.lemma_
+                                                  and (dict['pos1'] == 'anypos' or
+                                                       dict['pos1'] == self.transl(token.pos_)))), None)
+                        else:
+                            mpqa_dict = next((dict for dict in self.mpqa_dicts if dict['word1'] == token.lemma_), \
+                                         None)
+                        if mpqa_dict is not None:
+                            if mpqa_dict['priorpolarity'] == 'positive':
+                                if negated:
+                                    neg_mpqa = neg_mpqa + 1
+                                else:
+                                    pos_mpqa = pos_mpqa + 1
+                            if mpqa_dict['priorpolarity'] == 'negative':
+                                if negated:
+                                    pos_mpqa = pos_mpqa + 1
+                                else:
+                                    neg_mpqa = neg_mpqa + 1
+
+                seg_sent = pos - neg
+                seg_sent_mpqa = pos_mpqa - neg_mpqa
+                story_sent.append([seg_sent, seg_sent_mpqa])
+            story_sent = self.combine_sentiment_methods(story_sent, combination_of_methods, return_normalized)
+        print('story sent: {}' .format(story_sent))
+        print('vader: {}'.format(vader_sent))
         return story_sent
+
+    def categorize(self, array, pos_threshold, neg_threshold):
+        return list(map(int, [1 if sent > pos_threshold else -1 if sent < neg_threshold else 0 for sent in array]))
+
 
 
     def is_negated(self, token):
@@ -271,7 +299,7 @@ class SentimentAnalyzer:
                 if i % 50 == 0:
                     print("INFO: Processing story {}".format(i))
                 sentiment = self.story2sent(train_story, **kwargs)
-                print(train_story)
+                #print(train_story)
                 sentiment_condensed = self.story2sent(train_story, return_normalized=False, **kwargs)
                 sentiment_condensed = np.sign([np.sum(sentiment_condensed[0:story_struct['ending']]),
                                                sentiment[story_struct['ending']]])
@@ -303,13 +331,13 @@ class SentimentAnalyzer:
             #condensed
             i = 0
             for traj, val in self.sent_condensed_traj_counts_dict.items():
-                row = np.concatenate((np.fromstring(traj, dtype=np.int, sep=' '),
+                row = np.concatenate((np.fromstring(traj, dtype=np.float, sep=' '),
                                       np.array([val])))
                 if i == 0:
-                    self.sent_condensed_traj_counts_array = row
+                    self.sent_condensed_traj_counts_array = row.astype(np.int)
                 else:
                     self.sent_condensed_traj_counts_array= np.vstack((self.sent_condensed_traj_counts_array,
-                                                             row))
+                                                             row.astype(np.int)))
                 i = i + 1
 
             if self.save_traj:
@@ -348,7 +376,7 @@ class SentimentAnalyzer:
         for story in eval_stories_list:
             story_sent = self.story2sent(story, return_normalized=False)
             print(story)
-            #print(story_sent)
+            print(story_sent)
             assert len(story_sent) == self.sent_traj_counts_array.shape[1] #make sure the two endings are in story_sent: note: normally 4 dims in array but + counts = 5
             for ending in [len(story_sent) - 1, len(story_sent) - 2]:
                 story_proba_features = []
@@ -451,7 +479,7 @@ if __name__ == '__main__':
 
     start = tm.datetime.now()
     print('Computing probabilities ...')
-    proba_ending1, proba_ending2 = sentiment_analyzer.predict_proba(eval_stories, **config)
+    proba_ending1, proba_ending2 = sentiment_analyzer.predict_proba(eval_stories[0:config.get('n_eval_max', -1)], **config)
     binary_features = sentiment_analyzer.generate_bin_features(proba_ending1, proba_ending2)
     # Compute the topic similarity between the endings and the context
     print(proba_ending1, proba_ending2)
