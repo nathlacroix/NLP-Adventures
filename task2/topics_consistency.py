@@ -53,9 +53,12 @@ def compute_embedding(stories, nlp):
 
 def compute_similarity(embeddings):
     def similarity_score(context, ending):
-        sim_matrix = cosine_similarity(context, ending)
-        sim_words = np.amax(sim_matrix, axis=0)
-        return np.mean(sim_words)
+        if context == [] or ending == []:
+            return -1  # One sentence has no topic word
+        else:
+            sim_matrix = cosine_similarity(context, ending)
+            sim_words = np.amax(sim_matrix, axis=0)
+            return np.mean(sim_words)
 
     similarities = []
     for story in embeddings:

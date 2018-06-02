@@ -49,7 +49,7 @@ def get_train_val_data(base_path, **config):
     """ Load the data and split in training and validation set. """
     features_path = Path(base_path, 'features/train')
     X = load_features(features_path, config['features'])
-    data_path = Path(base_path, 'data/val_stories.csv')
+    data_path = Path(base_path, 'data/full_val_stories.csv')
     y = get_labels(data_path)
     return train_test_split(X,
                             y,
