@@ -91,7 +91,7 @@ class SentimentAnalyzer:
     def __init__(self, sentiment_files_path_dict=None,
                  probas_wanted=default_probas,
                  combination_of_methods='mpqa',
-                 sent_traj_counts_arrays_filepath=' ',
+                 sent_traj_counts_path=' ',
                  save_traj=True,
                  save_traj_path=None,
                  force_retrain=False,
@@ -113,12 +113,12 @@ class SentimentAnalyzer:
         self.sent_condensed_traj_counts_dict = {}
         self.sent_traj_counts_array = None
         self.sent_condensed_traj_counts_array = None
-        self.sent_traj_counts_arrays_filepath = sent_traj_counts_arrays_filepath
+        self.sent_traj_counts_path = sent_traj_counts_path
         self.save_traj = save_traj
         self.save_traj_path = save_traj_path
         self.probas_wanted = probas_wanted
         self.combination_of_methods = combination_of_methods
-        self.force_retrain=force_retrain
+        self.force_retrain = force_retrain
 
         self.use_vader = use_vader
         self.vader_pos_threshold = vader_pos_threshold
@@ -283,11 +283,11 @@ class SentimentAnalyzer:
                     list of training stories
         :return:
         '''
-        if Path(self.sent_traj_counts_arrays_filepath).exists() and not self.force_retrain:
+        if Path(self.sent_traj_counts_path).exists() and not self.force_retrain:
             print("INFO: found file with sentiment trajectories counts in {}." \
                   " Loading array from file instead of training." \
-                  .format(self.sent_traj_counts_arrays_filepath))
-            with np.load(self.sent_traj_counts_arrays_filepath) as data:
+                  .format(self.sent_traj_counts_path))
+            with np.load(self.sent_traj_counts_path) as data:
                 self.sent_traj_counts_array = data['sent_traj_counts_array']
                 self.sent_condensed_traj_counts_array = data['sent_condensed_traj_counts_array']
         else:
@@ -375,8 +375,8 @@ class SentimentAnalyzer:
 
         for story in eval_stories_list:
             story_sent = self.story2sent(story, return_normalized=False)
-            print(story)
-            print(story_sent)
+            #print(story)
+            #print(story_sent)
             assert len(story_sent) == self.sent_traj_counts_array.shape[1] #make sure the two endings are in story_sent: note: normally 4 dims in array but + counts = 5
             for ending in [len(story_sent) - 1, len(story_sent) - 2]:
                 story_proba_features = []
@@ -409,12 +409,6 @@ class SentimentAnalyzer:
                proba_features[:, self.sent_traj_counts_array.shape[1]-1:]
 
 
-    def generate_bin_features(self, probas_ending1, probas_ending2):
-        comparison = np.ones(proba_ending1.shape)
-        comparison[proba_ending1 < proba_ending2] = -1
-        return comparison
-
-
     def calc_proba_no_prior(self, sent_story, idx, array=None):
         if array is None:
             array = self.sent_traj_counts_array
@@ -430,8 +424,12 @@ class SentimentAnalyzer:
     def calc_proba_prior(self, sent_story, sent_idx, prior_idx, array=None):
         if array is None:
             array = self.sent_traj_counts_array
-        masked_sent_array = self.mask_sent_array(array, sent_story[prior_idx], prior_idx)
-        return self.calc_proba_no_prior(sent_story, sent_idx, masked_sent_array)
+        masked_sent_array = self.mask_sent_array(array,
+                                                 sent_story[prior_idx],
+                                                 prior_idx)
+        return self.calc_proba_no_prior(sent_story,
+                                        sent_idx,
+                                        masked_sent_array)
 
 
     def mask_sent_array(self, array, value, idx):
@@ -443,6 +441,87 @@ class SentimentAnalyzer:
             mask = np.all(array[:, idx] == np.multiply(np.ones((array.shape[0], len(idx)),
                                                                dtype=np.int), value), axis=1)
         return array[mask]
+
+
+    def get_sent_endings(self, stories_list):
+        sent_endings = []
+        for story in stories_list:
+            sent_endings.append(self.story2sent(story,
+                                                return_normalized=False)[-2:])
+        return np.asarray(sent_endings)
+
+
+    def generate_bin_features(self, probas_ending1, probas_ending2):
+        comparison = np.ones(probas_ending1.shape)
+        comparison[probas_ending1 < probas_ending2] = -1
+        return comparison
+
+
+    def generate_neutral_features(self, probas_ending1, probas_ending2):
+        n1 = np.all(probas_ending1[..., :] == 0, axis=1).astype(np.int)
+        n2 = np.all(probas_ending2[..., :] == 0, axis=1).astype(np.int)
+        return np.expand_dims(n1, 1), np.expand_dims(n2,1)
+
+
+    def generate_diff_sent_features(self, probas_ending1, probas_ending2,
+                                     exclude_neutral=False):
+        diff = np.expand_dims(np.any(probas_ending1[:, ...] != probas_ending2[:, ...], axis=1), 1)
+
+        if not exclude_neutral:
+            return diff.astype(np.int)
+        else:
+            n1, n2 = self.generate_neutral_features(probas_ending1,
+                                                    probas_ending2)
+            if not np.any(n1) or not np.any(n2):
+                print("WARNING: you requested to exclude neutral in diff_sent extra "
+                      "features, but there are no neutral endings. The result will be "
+                      "the same as if you didn't ask to exclude neutrals.")
+            #remove "true values" of diff array if ending1 or 2 is neutral
+            temp = np.logical_and(np.logical_not(n1.astype(np.bool)), diff)
+            diff_excl_neutr = np.logical_and(np.logical_not(n2.astype(np.bool)),
+                                             temp)
+            return diff_excl_neutr.astype(np.int)
+
+
+    def generate_extra_features(self, probas_ending1, probas_ending2,
+                                features, stories_list=None, indices=[0, 4]):
+        extra = []
+        print("Adding requested extra features: {}" .format(features))
+        if 'bin' in features:
+            b = self.generate_bin_features(probas_ending1,
+                                           probas_ending2)
+            extra.append(b)
+
+        if 'neutral' in features:
+            # Note: if predict_neutral was activated during predict_proba,
+            # this feature will be useless
+            n1, n2 = self.generate_neutral_features(probas_ending1,
+                                                    probas_ending2)
+            if not np.any(n1) or not np.any(n2):
+                print("WARNING: did not find any neutral ending. "
+                      "You asked for adding neutral_features while probably keeping"
+                      " predict_neutral as True. I will not add any neutral feature"
+                      " as it would be useless.")
+            else:
+                extra.append(n1)
+                extra.append(n2)
+
+        if 'diff_sent_endings' in features:
+            d = self.generate_diff_sent_features(probas_ending1,
+                                                 probas_ending2)
+            extra.append(d)
+        if 'diff_sent_endings_exclude_neutral' in features:
+            dnn = self.generate_diff_sent_features(probas_ending1,
+                                                   probas_ending2,
+                                                   exclude_neutral=True)
+            extra.append(dnn)
+        if 'sent_endings' in features:
+            extra.append(self.get_sent_endings(stories_list))
+
+        return np.hstack(extra)
+
+
+
 
 
 if __name__ == '__main__':
@@ -479,8 +558,14 @@ if __name__ == '__main__':
 
     start = tm.datetime.now()
     print('Computing probabilities ...')
-    proba_ending1, proba_ending2 = sentiment_analyzer.predict_proba(eval_stories[0:config.get('n_eval_max', None)], **config)
-    binary_features = sentiment_analyzer.generate_bin_features(proba_ending1, proba_ending2)
+    proba_ending1, \
+        proba_ending2 = sentiment_analyzer.predict_proba(eval_stories[0:config.get('n_eval_max',
+                                                                                   None)], **config)
+    extra_features = sentiment_analyzer.generate_extra_features(proba_ending1,
+                                                                proba_ending2,
+                                                                config.get('extra_features',
+                                                                           ['bin']))
+    #print(extra_features)
     # Compute the topic similarity between the endings and the context
     print(proba_ending1, proba_ending2)
     print("Done. Time for prediction: {}" .format(tm.datetime.now() - start))
@@ -489,5 +574,5 @@ if __name__ == '__main__':
     np.savez_compressed(args.output_path,
                         sentiment_ending1=proba_ending1,
                         sentiment_ending2=proba_ending2,
-                        binary_features=binary_features)
+                        extra_features=extra_features)
 print("Sentiment features stored in " + str(args.output_path))
