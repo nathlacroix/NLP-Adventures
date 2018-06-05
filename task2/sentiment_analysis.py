@@ -183,7 +183,6 @@ class SentimentAnalyzer:
         story_sent = []
         vader_sent = []
         blobtext_sent = []
-        return_normalized = True
         if combination_of_methods == None:
             combination_of_methods = self.combination_of_methods
 
