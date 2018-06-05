@@ -1,18 +1,18 @@
 from sklearn.model_selection import GridSearchCV
-from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
 
 
-class SimpleLogisticRegression():
+class SimpleSVM():
     def __init__(self):
-        self.parameters_to_tune = {'C': [0.01, 0.1, 1., 5, 10, 20, 30, 40, 100]}
+        self.parameters_to_tune = {'C': [0.01, 0.1, 1., 10, 100]}
         self.nb_folds = 5
-        self.clf = GridSearchCV(LogisticRegression(), self.parameters_to_tune,
+        self.clf = GridSearchCV(SVC(), self.parameters_to_tune,
                                 cv=self.nb_folds, scoring='accuracy')
+
     def train(self, X_train, y_train):
         print("Start training...")
         self.clf.fit(X_train, y_train)
-        print("Training is over. Best params: {}".format(self.clf.best_params_))
-        print(self.clf.cv_results_)
+        print("Training is over.")
 
     def predict(self, X_test):
         return self.clf.predict(X_test)

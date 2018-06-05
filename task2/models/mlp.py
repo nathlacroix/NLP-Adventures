@@ -1,18 +1,19 @@
 from sklearn.model_selection import GridSearchCV
-from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
+import numpy as np
 
-
-class SimpleLogisticRegression():
+class SimpleMLP():
     def __init__(self):
-        self.parameters_to_tune = {'C': [0.01, 0.1, 1., 5, 10, 20, 30, 40, 100]}
+        self.parameters_to_tune = {'alpha': 10.0 ** - np.arange(-3, 3)}
         self.nb_folds = 5
-        self.clf = GridSearchCV(LogisticRegression(), self.parameters_to_tune,
+        self.clf = GridSearchCV(MLPClassifier(hidden_layer_sizes=(40,20), solver='adam'), self.parameters_to_tune,
                                 cv=self.nb_folds, scoring='accuracy')
+
     def train(self, X_train, y_train):
         print("Start training...")
         self.clf.fit(X_train, y_train)
-        print("Training is over. Best params: {}".format(self.clf.best_params_))
-        print(self.clf.cv_results_)
+        print("Training is over. Best params: {}" .format(self.clf.best_params_))
+        print("CV results : {} " .format(self.clf.cv_results_))
 
     def predict(self, X_test):
         return self.clf.predict(X_test)
@@ -21,4 +22,4 @@ class SimpleLogisticRegression():
         return self.clf.score(X_test, y_test)
 
     def get_weights(self):
-        return self.clf.best_estimator_.coef_
+        return self.clf.best_estimator_.coefs_
