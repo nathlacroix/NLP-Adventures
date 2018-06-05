@@ -1,3 +1,10 @@
-features: ['sentiment']
-validation_ratio: 0.15
-random_seed: 40
+features: ['sentiment_bl_total_no_neutral', 'sentiment_mpqa_total_no_neutral', 'sentiment_vader_total_no_neutral_all_extra', 'textual_entailment_comp-cond_val_test']
+#features: ['textual_entailment_comp-cond_val_test']
+validation_ratio: 0.50
+random_seed: 0
+# default is 'lr' = logistic regression. Choose between 'lr', 'xgb', 'svm'
+model:
+  name: 'xgb'
+  params:
+    n_iter: 100
+
