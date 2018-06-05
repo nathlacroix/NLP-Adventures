@@ -97,19 +97,20 @@ class RNN(BaseModel):
                 down_projection = output
 
             # Get the pre-softmax logits
-            logits = tf.matmul(down_projection, W_softmax)
+            logits = tf.matmul(down_projection, W_softmax)[:, :-1, :]
+            labels = data[:, 1:]
 
         if mode == Mode.TRAIN:
-            train_loss = self.compute_loss(data, logits, pad_ind)
+            train_loss = self.compute_loss(labels, logits, pad_ind)
             return tf.reduce_mean(train_loss), embeddings
 
         if mode == Mode.VAL:
-            eval_loss = self.compute_loss(data, logits, pad_ind)
+            eval_loss = self.compute_loss(labels, logits, pad_ind)
             perplexity = tf.exp(eval_loss)
             return perplexity
 
         if mode == Mode.TEST:
-            probs = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=data,
+            probs = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels,
                                                                    logits=logits)
             probs = tf.reshape(probs, [-1])[-ending_size:]
             return tf.reduce_sum(probs)

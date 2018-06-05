@@ -124,7 +124,7 @@ def eval(data, pad_ind, exp_dir, **config):
         saver.restore(sess, os.path.join(exp_dir, "models/model.ckpt"))
         for i in range(M):
             feature = []
-            for j in range(1, config['context_size'] + 1):
+            for j in np.linspace(1, len(data[0][i]), num=config['num_features'], dtype=int):
                 feature_endings = []
                 for ending in [1, 2]:
                     ending_length = len(data[ending][i])

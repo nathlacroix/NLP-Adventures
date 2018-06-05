@@ -9,7 +9,7 @@ _default_config = {
         'validation_size': 5000,
         'nb_frames': 0,
         'random_seed': 0,
-        'eval_prefix': 'val',
+        'eval_prefix': 'sct_val_framenet',
         'training_file': 'sct_train_framenet.txt',
 }
 
@@ -88,9 +88,9 @@ def get_dataset(data_path, **user_config):
     random.Random(config['random_seed']).shuffle(train_data)
     val_data = train_data[:config['validation_size']]
     train_data = train_data[config['validation_size']:]
-    test_context_path = Path(data_path, config['eval_prefix'] + '_context.txt')
-    test_ending1_path = Path(data_path, config['eval_prefix'] + '_ending1.txt')
-    test_ending2_path = Path(data_path, config['eval_prefix'] + '_ending2.txt')
+    test_context_path = Path(data_path, config['eval_prefix'] + '.txt')
+    test_ending1_path = Path(data_path, config['eval_prefix'] + '_ending0.txt')
+    test_ending2_path = Path(data_path, config['eval_prefix'] + '_ending1.txt')
     test_data = _parse_test_files([test_context_path,
                                    test_ending1_path,
                                    test_ending2_path], config)
