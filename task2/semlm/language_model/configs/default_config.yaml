@@ -1,16 +1,16 @@
 random_seed: 0
 model: 'rnn'
 nb_frames: 0  # 0 means taking all the frames for each document
-vocab_size: 20000
+vocab_size: 673
 state_size: 512
 embedding_size: 100
-context_size: 10
+num_features: 6
 batch_size: 64
-num_iter: 100000
+num_iter: 40000
 learning_rate: 0.001
-validation_interval: 5000
+validation_interval: 3000
 validation_size: 5000
 log_dir: "./logs"
 training_file: 'sct_train_framenet.txt'
-eval_prefix: 'val'
+eval_prefix: 'sct_val_framenet'
 use_binary_features: True
