@@ -21,6 +21,17 @@ def is_ascii(s):
     return len(s) == len(s.encode())
 
 
+def remove_unicode(s):
+    s_ascii = ''
+    for c in s:
+        if ord(c) > 127:
+            if c == 'é':
+                s_ascii += 'e'
+        else:
+            s_ascii += c
+    return s_ascii
+
+
 def parse_string(srl_pipeline, text,
                  add_period_tag=True, add_discourse_marker=True):
     index_predicate_token, index_pos_token = srl_pipeline.parse(text)
@@ -64,24 +75,26 @@ if __name__ == '__main__':
     parser.add_argument('--srl_annotation', default='framenet', type=str)
     args = parser.parse_args()
 
+    output_path = Path(args.output_path)
+    if args.has_endings:
+        endings_output_paths = [Path(output_path.parents[0], '{}_ending{}{}'.format(
+            output_path.stem, i, output_path.suffix)) for i in range(num_endings)]
+
     print("Loading parsing pipeline...")
     srl_pipeline = Srl(args.srl_annotation)
-
     def parse(s):
         return parse_string(srl_pipeline, s)
 
     print("Loading stories...")
     stories = load_stories(args.data_path, args.has_titles)
 
-    # semantic_endings = []
     failures = 0
     for s in tqdm(stories):
         # jnius crashes with unicode characters
         if not is_ascii(' '.join(s)):
-            failures += 1
-            continue
+            s = [remove_unicode(sentence) for sentence in s]
 
-        context_end = -num_endings if args.has_endings else len(s)
+        context_end = -num_endings-1 if args.has_endings else len(s)
         parsed_context = []
         try:
             for c in s[:context_end]:
@@ -91,25 +104,12 @@ if __name__ == '__main__':
             print('SRL parsing failed: {}'.format(e))
             failures += 1
             continue
+        append_to_file(output_path, parsed_context)
 
-        append_to_file(args.output_path, parsed_context)
+        if args.has_endings:
+            for e, p in zip(s[context_end:-1], endings_output_paths):
+                parsed_ending = parse(e)
+                parsed_ending.append({'type': 'punctuation', 'name': 'period'})
+                append_to_file(p, parsed_ending)
 
     print('Num failures: {}'.format(failures))
-
-        # semantic_stories.append(context)
-
-        # if args.has_endings:
-            # endings = []
-            # try:
-                # for e in s[context_end:]:
-                    # endings.append(parse(e))
-            # except KeyError as e:
-                # print('SRL parsing failed: {}'.format(e))
-                # failures += 1
-                # semantic_stories.pop()
-                # continue
-            # semantic_endings.append(endings)
-
-    # export_dict = dict(enumerate(semantic_stories))
-    # with open(args.output_path, 'w') as f:
-        # json.dump(export_dict, f)

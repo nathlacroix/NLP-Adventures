@@ -17,6 +17,7 @@ if __name__ == '__main__':
     parser.add_argument('--has_titles', dest='has_titles', action='store_true')
     parser.add_argument('--srl_annotation', default='framenet', type=str)
     args = parser.parse_args()
+    assert not args.has_endings
 
     assert Path(args.data_path).exists()
     with open(args.data_path, 'r') as f:
@@ -40,8 +41,6 @@ if __name__ == '__main__':
         sub_args = ['python3', parse_script,
                     input_files[i].as_posix(), output_files[i].as_posix(),
                     '--srl_annotation={}'.format(args.srl_annotation)]
-        if args.has_endings:
-            sub_args.append('--has_endings')
         if args.has_titles:
             sub_args.append('--has_titles')
         return sub_args
