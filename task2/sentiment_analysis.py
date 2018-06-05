@@ -6,6 +6,7 @@ import datetime as tm
 from pathlib import Path
 import yaml
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from textblob import TextBlob
 
 sentiment_files_path_dict = {'negative': '/home/nathan/NLP-Adventures/task2' \
                                          '/ressources/sentiment_lexica/negative_words.txt',
@@ -37,8 +38,12 @@ default_probas = [{'posterior': 'ending', 'prior': ['climax', 'body', 'beginning
                   {'posterior': 'ending', 'prior': ['climax', 'body']},
                   {'posterior': 'ending', 'prior': 'climax'},
                   {'posterior': 'ending', 'prior': 'context'}]
-vader_pos=.05
-vader_neg=-.05
+vader_pos = .05
+vader_neg = -.05
+blob_pos = .1
+blob_neg = -.1
+
+default_sent = {'method': 'average'}
 
 def load_stories(filename, parsing_instructions):
     """
@@ -90,12 +95,11 @@ class SentimentAnalyzer:
 
     def __init__(self, sentiment_files_path_dict=None,
                  probas_wanted=default_probas,
-                 combination_of_methods='mpqa',
                  sent_traj_counts_path=' ',
                  save_traj=True,
                  save_traj_path=None,
                  force_retrain=False,
-                 use_vader=False,
+                 sent_method=default_sent,
                  vader_pos_threshold=.05,
                  vader_neg_threshold=-.05, **kwargs):
         ''' Note: positive_words & negative words are lists of strings, mpqa_dicts is a list of dict'''
@@ -117,12 +121,21 @@ class SentimentAnalyzer:
         self.save_traj = save_traj
         self.save_traj_path = save_traj_path
         self.probas_wanted = probas_wanted
-        self.combination_of_methods = combination_of_methods
+        self.combination_of_methods = sent_method['method']
         self.force_retrain = force_retrain
 
-        self.use_vader = use_vader
-        self.vader_pos_threshold = vader_pos_threshold
-        self.vader_neg_threshold = vader_neg_threshold
+        self.sent_method = sent_method['method']
+
+        self.pos_threshold = sent_method.get('pos_threshold',
+                                             vader_pos if sent_method['method'] == 'vader'
+                                                       else blob_pos if sent_method['method'] == 'blobtext'
+                                                       else 0.001)
+        self.neg_threshold = sent_method.get('neg_threshold',
+                                             vader_neg if sent_method['method'] == 'vader'
+                                                       else blob_neg if sent_method['method'] == 'blobtext'
+                                                       else -0.001)
+
+        print(self.sent_method, self.pos_threshold, self.neg_threshold)
 
         if save_traj and save_traj_path is None:
             print('ERROR: did not specify saving directory for sentiment traj. They will not be saved')
@@ -169,31 +182,34 @@ class SentimentAnalyzer:
     def story2sent(self, story, combination_of_methods=None, return_normalized=True, **kwargs):
         story_sent = []
         vader_sent = []
-        analyzer = SentimentIntensityAnalyzer()
+        blobtext_sent = []
+        return_normalized = True
         if combination_of_methods == None:
             combination_of_methods = self.combination_of_methods
 
-        if self.use_vader:
+        if self.sent_method == 'vader':
+            analyzer = SentimentIntensityAnalyzer()
             for seg in story:
                 vader_sent.append(analyzer.polarity_scores(seg)['compound'])
-            if return_normalized:
-                return self.categorize(vader_sent,
-                                       self.vader_pos_threshold,
-                                       self.vader_neg_threshold)
-            else:
-                return vader_sent
+            return self.categorize(vader_sent,
+                                   self.pos_threshold,
+                                   self.neg_threshold) if return_normalized else vader_sent
+        elif self.sent_method == 'blobtext':
+            for seg in story:
+                blobtext_sent.append(TextBlob(seg).sentiment.polarity)
+            return self.categorize(blobtext_sent,
+                                   self.pos_threshold,
+                                   self.neg_threshold) if return_normalized else blobtext_sent
+
         else:
             for seg in story:
                 pos, neg, pos_mpqa, neg_mpqa = 0, 0, 0, 0
                 seg_parsed = self.nlp(seg)
                 for sentence in seg_parsed.sents:
-
                     for token in sentence:
-
                         if token.pos_ in ['ADP', 'AUX', 'DET', 'NUM', 'PRON',
                                           'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'SPACE']:
                             continue
-
                         negated = self.is_negated(token)
                         if token.lemma_ in self.positive_words:
                             if negated:
@@ -230,14 +246,14 @@ class SentimentAnalyzer:
                 seg_sent = pos - neg
                 seg_sent_mpqa = pos_mpqa - neg_mpqa
                 story_sent.append([seg_sent, seg_sent_mpqa])
-            story_sent = self.combine_sentiment_methods(story_sent, combination_of_methods, return_normalized)
+            story_sent = self.combine_sentiment_methods(story_sent, combination_of_methods,
+                                                        return_normalized=return_normalized)
         print('story sent: {}' .format(story_sent))
         print('vader: {}'.format(vader_sent))
         return story_sent
 
     def categorize(self, array, pos_threshold, neg_threshold):
         return list(map(int, [1 if sent > pos_threshold else -1 if sent < neg_threshold else 0 for sent in array]))
-
 
 
     def is_negated(self, token):
@@ -262,9 +278,9 @@ class SentimentAnalyzer:
         if combination == 'average':
             story_sent = np.sum(story_sent, axis=1)
         if combination == 'binglui':
-            story_sent = np.sign(story_sent[:,0])
+            story_sent = story_sent[:,0]
         if combination == 'mpqa':
-            story_sent = np.sign(story_sent[:, 1])
+            story_sent = story_sent[:, 1]
         if return_normalized:
             return np.sign(story_sent)
         else:
@@ -376,8 +392,10 @@ class SentimentAnalyzer:
         for story in eval_stories_list:
             story_sent = self.story2sent(story, return_normalized=False)
             #print(story)
-            #print(story_sent)
-            assert len(story_sent) == self.sent_traj_counts_array.shape[1] #make sure the two endings are in story_sent: note: normally 4 dims in array but + counts = 5
+            print('eval story sent: {}'.format(story_sent))
+            #make sure the two endings are in story_sent: note: normally 4 dims in array but + counts = 5
+            assert len(story_sent) == self.sent_traj_counts_array.shape[1]
+
             for ending in [len(story_sent) - 1, len(story_sent) - 2]:
                 story_proba_features = []
                 # if ending is neutral, send 0 proba back (?!)
@@ -391,8 +409,12 @@ class SentimentAnalyzer:
                                                           [story_struct[prior] for prior in proba['prior']])
                         elif proba['prior'] == 'context':
                             context_sent = np.sign(np.sum(masked_sent_story[0:story_struct['ending']]))
-                            condensed_sent = np.array([context_sent, np.sign(masked_sent_story[story_struct['ending']])])
-                            proba_val = self.calc_proba_prior(condensed_sent, 1, 0, self.sent_condensed_traj_counts_array)  # 0 because since size of array changed, just let know that should take ending as posterior last element (= ending)
+                            condensed_sent = np.array([context_sent,
+                                                       np.sign(masked_sent_story[story_struct['ending']])])
+                            # 0 because since size of array changed,
+                            # just let know that should take ending as posterior last element (= ending)
+                            proba_val = self.calc_proba_prior(condensed_sent, 1, 0,
+                                                              self.sent_condensed_traj_counts_array)
                         else:
                             proba_val = self.calc_proba_prior(np.sign(masked_sent_story),
                                                               story_struct[proba['posterior']],
@@ -404,7 +426,9 @@ class SentimentAnalyzer:
 #                    print("Proba {}: {}" .format(proba, proba_val))
                     story_proba_features.append(proba_val)
                 proba_features.append(story_proba_features)
-        proba_features = np.asarray(proba_features).reshape(((-1, 2* (self.sent_traj_counts_array.shape[1]-1))))
+
+        proba_features = np.asarray(proba_features).reshape(((-1,
+                                                              2 * (self.sent_traj_counts_array.shape[1]-1))))
         return proba_features[:, :self.sent_traj_counts_array.shape[1]-1], \
                proba_features[:, self.sent_traj_counts_array.shape[1]-1:]
 
@@ -544,7 +568,19 @@ if __name__ == '__main__':
     print('Loading stories according to parsing instructions: {}'.format(eval_parsing_instructions))
     eval_stories = load_stories(args.data_path + '/val_stories.csv', eval_parsing_instructions)
     print("Stories loaded.")
-
+    '''
+    fail_array = [1871, 1875, 1877, 1878, 1881, 1898, 1902, 1904, 1914, 1915, 1919,
+       1920, 1921, 1933, 1938, 1940, 1958, 1960, 1964, 1968, 1982, 1983,
+       1986, 1990, 1992, 1993, 1996, 2005, 2012, 2016, 2017, 2019, 2022,
+       2025, 2031, 2033, 2035, 2036, 2040, 2041, 2044, 2048, 2055, 2059,
+       2064, 2065, 2068, 2070, 2076, 2078, 2079, 2080, 2093, 2094, 2096,
+       2099]
+    fail_entail = np.asarray(eval_stories)[fail_array,:]
+    i = 0
+    for fail in fail_entail:
+        print('{} : {}'.format(fail_array[i] -1871, fail))
+        i += 1
+    '''
     with open(args.config, 'r') as f:
         config = yaml.load(f)
     print("Config: {}".format(config))

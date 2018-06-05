@@ -5,4 +5,6 @@ gensim
 sklearn
 spacy
 matplotlib
+xgboost
+textblob
 
