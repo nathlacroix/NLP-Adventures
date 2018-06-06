@@ -141,7 +141,7 @@ def eval(data, pad_ind, exp_dir, **config):
 
     features = np.array(features)
 
-    path = os.path.join(exp_dir, "outputs/events.npz")
+    path = os.path.join(exp_dir, "outputs/" + config['eval_prefix'] + ".npz")
     arrays = {}
     for j in range(features.shape[1]):
         arrays['feature' + str(j)] = features[:, j]
