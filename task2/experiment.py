@@ -46,15 +46,19 @@ def load_features(path, features):
 
 
 def get_train_val_data(base_path, **config):
-    """ Load the data and split in training and validation set. """
-    features_path = Path(base_path, 'features/train')
-    X = load_features(features_path, config['features'])
-    data_path = Path(base_path, 'data/full_val_stories.csv')
-    y = get_labels(data_path)
-    return train_test_split(X,
-                            y,
-                            test_size=config['validation_ratio'],
-                            random_state=config['random_seed'])
+    """ Load the training and validation data. """
+    # Load training data
+    train_features_path = Path(base_path, 'features/train')
+    X_train = load_features(train_features_path, config['features'])
+    train_data_file = Path(base_path, 'data/' + config['train_labels_file'])
+    y_train = get_labels(train_data_file)
+
+    # Load validation data
+    val_features_path = Path(base_path, 'features/val')
+    X_val = load_features(val_features_path, config['features'])
+    val_data_file = Path(base_path, 'data/' + config['val_labels_file'])
+    y_val = get_labels(val_data_file)
+    return X_train, X_val, y_train, y_val
 
 
 if __name__ == '__main__':

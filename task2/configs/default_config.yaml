@@ -1,3 +1,4 @@
-features: ['events', 'sentiment', 'topic']
-validation_ratio: 0.15
+features: ['events', 'sentiment', 'topic', 'textual_entailment']
+train_labels_file: 'val_stories.csv'
+val_labels_file: 'test_stories.csv'
 random_seed: 42
