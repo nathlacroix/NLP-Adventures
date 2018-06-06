@@ -6,7 +6,7 @@ from pathlib import Path
 from sklearn.metrics.pairwise import cosine_similarity
 
 
-def load_stories(filename):
+def load_stories(filename, test=False):
     """
     Load the stories from filename and sort them in three
     dimensions: the 4 first concatenated sentences, the
@@ -16,12 +16,15 @@ def load_stories(filename):
         raise Exception(filename + " cannot be found. Aborting.")
     stories = []
     with open(filename, 'r') as csvfile:
-        csvfile.readline()  # get rid of the header
+        if not test:
+            csvfile.readline()  # get rid of the header
         reader = csv.reader(csvfile, delimiter=',')
         for row in reader:
-            context = row[1] + " " + row[2] + " " + row[3] + " " + row[4]
-            ending1 = row[5]
-            ending2 = row[6]
+            if not test:
+                row = row[1:]
+            context = row[0] + " " + row[1] + " " + row[2] + " " + row[3]
+            ending1 = row[4]
+            ending2 = row[5]
             stories.append([context, ending1, ending2])
     return stories
 
@@ -65,7 +68,8 @@ def compute_similarity(embeddings):
         sim1 = similarity_score(story[0], story[1])
         sim2 = similarity_score(story[0], story[2])
         binary_feature = int(sim1 <= sim2)
-        similarities.append([sim1, sim2, binary_feature])
+        relevance = 1 if (sim1 > 0.1 and sim2 < sim1-0.3) or (sim1 < sim2-0.3 and sim2 > 0.1) else 0
+        similarities.append([sim1, sim2, binary_feature, relevance])
     return np.array(similarities)
 
 
@@ -74,6 +78,8 @@ if __name__ == '__main__':
     parser.add_argument('data_path', type=str,
                         help="path to the stories")
     parser.add_argument('output_path', type=str, help="path to the output file")
+    parser.add_argument('--test', dest='test', action='store_true')
+    parser.set_defaults(test=False)
     args = parser.parse_args()
 
     # Set up spacy
@@ -81,7 +87,7 @@ if __name__ == '__main__':
 
     # Load the stories, process them and compute their word embedding
     print("Loading stories...")
-    stories = load_stories(args.data_path)
+    stories = load_stories(args.data_path, args.test)
     print("Stories loaded.")
     print("Computing embeddings and topic similarity...")
     embeddings = compute_embedding(stories, nlp)
@@ -94,5 +100,6 @@ if __name__ == '__main__':
     np.savez_compressed(args.output_path,
                         topic_ending1=similarities[:, 0],
                         topic_ending2=similarities[:, 1],
-                        binary_feature=similarities[:, 2])
+                        binary_feature=similarities[:, 2],
+                        relevance=similarities[:, 3])
     print("Topic consistency features stored in " + str(args.output_path))
