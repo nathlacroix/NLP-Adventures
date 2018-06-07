@@ -243,8 +243,8 @@ class SentimentAnalyzer:
                 story_sent.append([seg_sent, seg_sent_mpqa])
             story_sent = self.combine_sentiment_methods(story_sent, combination_of_methods,
                                                         return_normalized=return_normalized)
-        print('story sent: {}' .format(story_sent))
-        print('vader: {}'.format(vader_sent))
+        #print('story sent: {}' .format(story_sent))
+        #print('vader: {}'.format(vader_sent))
         return story_sent
 
     def categorize(self, array, pos_threshold, neg_threshold):
@@ -370,7 +370,7 @@ class SentimentAnalyzer:
         #note: two last columns have to be "ending 1 and ending2"
         if probas_wanted == None:
             probas_wanted = self.probas_wanted
-        print(probas_wanted)
+        print("INFO: Model predicting the following probabilities: {}".format(probas_wanted))
 
         if self.sent_traj_counts_array is None:
             raise Exception("Model not trained. Please train model first.")
@@ -384,13 +384,17 @@ class SentimentAnalyzer:
                 self.sent_traj_counts_array[self.sent_traj_counts_array[:, story_struct['ending']] != 0]
             print("Done.")
 
+        i = 0
         for story in eval_stories_list:
+            if i % 50 == 0:
+                print("Predicting story {}/{}".format(i, len(eval_stories_list)))
+            i += 1
+
             story_sent = self.story2sent(story, return_normalized=False)
             #print(story)
-            print('eval story sent: {}'.format(story_sent))
             #make sure the two endings are in story_sent: note: normally 4 dims in array but + counts = 5
             assert len(story_sent) == self.sent_traj_counts_array.shape[1]
-
+            
             for ending in [len(story_sent) - 1, len(story_sent) - 2]:
                 story_proba_features = []
                 # if ending is neutral, send 0 proba back (?!)
@@ -434,7 +438,7 @@ class SentimentAnalyzer:
 
         masked_sent_array = self.mask_sent_array(array, sent_story[idx], idx)
         if masked_sent_array.size == 0:
-            print('WARNING: could not find the probability. Will return 0')
+            #print('WARNING: could not find the probability. Will return 0')
             return 0
         else:
             return np.sum(masked_sent_array[:,-1]) / np.sum(array[:, -1])
@@ -594,7 +598,7 @@ if __name__ == '__main__':
                                                                            ['bin']))
     #print(extra_features)
     # Compute the topic similarity between the endings and the context
-    print(proba_ending1, proba_ending2)
+    #print(proba_ending1, proba_ending2)
     print("Done. Time for prediction: {}" .format(tm.datetime.now() - start))
 
     # Write the features to a .npz file
