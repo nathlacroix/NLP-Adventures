@@ -61,15 +61,19 @@ def compute_similarity(embeddings):
         else:
             sim_matrix = cosine_similarity(context, ending)
             sim_words = np.amax(sim_matrix, axis=0)
-            return np.mean(sim_words)
+            return np.mean(np.sort(sim_words)[-3:])
 
     similarities = []
     for story in embeddings:
         sim1 = similarity_score(story[0], story[1])
         sim2 = similarity_score(story[0], story[2])
-        binary_feature = int(sim1 <= sim2)
-        relevance = 1 if (sim1 > 0.1 and sim2 < sim1-0.3) or (sim1 < sim2-0.3 and sim2 > 0.1) else 0
-        similarities.append([sim1, sim2, binary_feature, relevance])
+        if sim1 > 0.3 and sim2 < sim1-0.5:
+            relevance = 1
+        elif sim2 > 0.3 and sim1 < sim2-0.5:
+            relevance = -1
+        else:
+            relevance = 0
+        similarities.append([sim1, sim2, relevance])
     return np.array(similarities)
 
 
@@ -100,6 +104,5 @@ if __name__ == '__main__':
     np.savez_compressed(args.output_path,
                         topic_ending1=similarities[:, 0],
                         topic_ending2=similarities[:, 1],
-                        binary_feature=similarities[:, 2],
-                        relevance=similarities[:, 3])
+                        relevance=similarities[:, 2])
     print("Topic consistency features stored in " + str(args.output_path))
