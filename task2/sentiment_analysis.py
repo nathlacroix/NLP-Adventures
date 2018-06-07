@@ -611,7 +611,7 @@ if __name__ == '__main__':
     start = tm.datetime.now()
     print('Computing probabilities ...')
     proba_ending1, \
-        proba_ending2 = sentiment_analyzer.predict_proba(eval_stories[0:config.get('n_test_max',
+        proba_ending2 = sentiment_analyzer.predict_proba(test_stories[0:config.get('n_test_max',
                                                                                    None)], **config)
     extra_features = sentiment_analyzer.generate_extra_features(proba_ending1,
                                                                 proba_ending2,
