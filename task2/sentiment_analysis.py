@@ -394,7 +394,7 @@ class SentimentAnalyzer:
             #print(story)
             #make sure the two endings are in story_sent: note: normally 4 dims in array but + counts = 5
             assert len(story_sent) == self.sent_traj_counts_array.shape[1]
-            
+
             for ending in [len(story_sent) - 1, len(story_sent) - 2]:
                 story_proba_features = []
                 # if ending is neutral, send 0 proba back (?!)
@@ -606,4 +606,28 @@ if __name__ == '__main__':
                         sentiment_ending1=proba_ending1,
                         sentiment_ending2=proba_ending2,
                         extra_features=extra_features)
-print("Sentiment features stored in " + str(args.output_path))
+
+
+    start = tm.datetime.now()
+    print('Computing probabilities ...')
+    proba_ending1, \
+        proba_ending2 = sentiment_analyzer.predict_proba(eval_stories[0:config.get('n_test_max',
+                                                                                   None)], **config)
+    extra_features = sentiment_analyzer.generate_extra_features(proba_ending1,
+                                                                proba_ending2,
+                                                                config.get('extra_features',
+                                                                           ['bin']))
+    #print(extra_features)
+    # Compute the topic similarity between the endings and the context
+    #print(proba_ending1, proba_ending2)
+    print("Done. Time for prediction: {}" .format(tm.datetime.now() - start))
+
+    # Write the features to a .npz file
+    np.savez_compressed(dir + '/features/train/' + 'test_' +args.output_path.split(sep='/')[-1],
+                        sentiment_ending1=proba_ending1,
+                        sentiment_ending2=proba_ending2,
+                        extra_features=extra_features)
+
+
+    print("Sentiment features stored in " + dir +
+          '/features/train/' + 'test_' + args.output_path.split(sep='/')[-1])
