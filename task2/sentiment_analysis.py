@@ -7,19 +7,9 @@ from pathlib import Path
 import yaml
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from textblob import TextBlob
+import os
 
-sentiment_files_path_dict = {'negative': '/home/nathan/NLP-Adventures/task2' \
-                                         '/ressources/sentiment_lexica/negative_words.txt',
-                             'positive': '/home/nathan/NLP-Adventures/task2' \
-                                         '/ressources/sentiment_lexica/positive_words.txt',
-                             'mpqa': '/home/nathan/NLP-Adventures/task2' \
-                                     '/ressources/sentiment_lexica/subjective_clues.txt'}
-sentiment_files_path_dict_cluster = {'negative': '/cluster/home/lna/NLP-Adventures/task2' \
-                                         '/ressources/sentiment_lexica/negative_words.txt',
-                             'positive': '/cluster/home/lna/NLP-Adventures/task2' \
-                                         '/ressources/sentiment_lexica/positive_words.txt',
-                             'mpqa': '/cluster/home/lna/NLP-Adventures/task2' \
-                                     '/ressources/sentiment_lexica/subjective_clues.txt'}
+dir = os.path.dirname(__file__)
 train_parsing_instructions = {'beginning': [2],
                         'body': [3, 4],
                         'climax': [5],
@@ -29,6 +19,12 @@ eval_parsing_instructions = {'beginning': [1],
                         'climax': [4],
                         'ending1': [5],
                         'ending2': [6]}
+test_parsing_instructions = {'beginning': [0],
+                             'body' : [1,2],
+                             'climax': [3],
+                             'ending1': [4],
+                             'ending2': [5]
+                             }
 story_struct={'beginning': 0,
               'body': 1,
               'climax': 2,
@@ -45,7 +41,7 @@ blob_neg = -.1
 
 default_sent = {'method': 'average'}
 
-def load_stories(filename, parsing_instructions):
+def load_stories(filename, parsing_instructions, header=True):
     """
     Load the stories from filename and sort them in three
     dimensions: the 4 first concatenated sentences, the
@@ -55,7 +51,9 @@ def load_stories(filename, parsing_instructions):
         raise Exception(filename + " cannot be found. Aborting.")
     stories = []
     with open(filename, 'r') as csvfile:
-        csvfile.readline()  # get rid of the header
+        if header:
+            csvfile.readline()
+
         reader = csv.reader(csvfile, delimiter=',')
         for row in reader:
             segmented_story = []
@@ -135,8 +133,6 @@ class SentimentAnalyzer:
                                                        else blob_neg if sent_method['method'] == 'blobtext'
                                                        else -0.001)
 
-        print(self.sent_method, self.pos_threshold, self.neg_threshold)
-
         if save_traj and save_traj_path is None:
             print('ERROR: did not specify saving directory for sentiment traj. They will not be saved')
             self.save_traj = False
@@ -148,7 +144,7 @@ class SentimentAnalyzer:
         return positives, negatives, mpqas
 
     def read_wordlist(self, path):
-        with open(path, mode='r') as wordlist_file:
+        with open(dir + path, mode='r') as wordlist_file:
             wordlist = []
             for line in wordlist_file:
                 if line.startswith(';') or line.startswith('\n'):
@@ -162,7 +158,7 @@ class SentimentAnalyzer:
         return wordlist
 
     def read_mpqa(self, path):
-        with open(path, mode='r') as file:
+        with open(dir + path, mode='r') as file:
             wordlist = []
             for line in file:
                 if line.startswith(';') or line.startswith('\n'):
@@ -277,9 +273,9 @@ class SentimentAnalyzer:
         if combination == 'average':
             story_sent = np.sum(story_sent, axis=1)
         if combination == 'binglui':
-            story_sent = story_sent[:,0]
+            story_sent = np.sign(story_sent[:,0])
         if combination == 'mpqa':
-            story_sent = story_sent[:, 1]
+            story_sent = np.sign(story_sent[:, 1])
         if return_normalized:
             return np.sign(story_sent)
         else:
@@ -562,24 +558,20 @@ if __name__ == '__main__':
 
     # Load the stories, process them and compute their word embedding
     print('Loading stories according to parsing instructions: {}'.format(train_parsing_instructions))
-    train_stories = load_stories(args.data_path + '/train_stories.csv', train_parsing_instructions)
-    print("Stories loaded.")
+    train_stories = load_stories(args.data_path + '/train_stories.csv',
+                                 train_parsing_instructions)
+    print("Train Stories loaded.")
     print('Loading stories according to parsing instructions: {}'.format(eval_parsing_instructions))
-    eval_stories = load_stories(args.data_path + '/val_stories.csv', eval_parsing_instructions)
-    print("Stories loaded.")
-    '''
-    fail_array = [1871, 1875, 1877, 1878, 1881, 1898, 1902, 1904, 1914, 1915, 1919,
-       1920, 1921, 1933, 1938, 1940, 1958, 1960, 1964, 1968, 1982, 1983,
-       1986, 1990, 1992, 1993, 1996, 2005, 2012, 2016, 2017, 2019, 2022,
-       2025, 2031, 2033, 2035, 2036, 2040, 2041, 2044, 2048, 2055, 2059,
-       2064, 2065, 2068, 2070, 2076, 2078, 2079, 2080, 2093, 2094, 2096,
-       2099]
-    fail_entail = np.asarray(eval_stories)[fail_array,:]
-    i = 0
-    for fail in fail_entail:
-        print('{} : {}'.format(fail_array[i] -1871, fail))
-        i += 1
-    '''
+    eval_stories = load_stories(args.data_path + '/val_stories.csv',
+                                eval_parsing_instructions)
+    print("Eval Stories loaded.")
+    print("Train Stories loaded.")
+
+    print('Loading stories according to parsing instructions: {}'.format(test_parsing_instructions))
+    test_stories = load_stories(args.data_path + '/test_nlu18_utf-8.csv',
+                                test_parsing_instructions, header=False)
+    print("Test Stories loaded.")
+
     with open(args.config, 'r') as f:
         config = yaml.load(f)
     print("Config: {}".format(config))
