@@ -17,12 +17,16 @@ labels = ['entailment', 'contradiction', 'neutral']
 num_context_sentences = 4
 
 
-def load_stories(filename):
+def load_stories(filename, has_header=True, has_id=True):
     assert Path(filename).exists()
     stories = []
     with open(filename, 'r') as csvfile:
-        csvfile.readline()  # get rid of the header
-        stories = [Story(context=r[1:1+num_context_sentences], endings=r[5:7])
+        if has_header:
+            csvfile.readline()  # get rid of the header
+        context_start = 1 if has_id else 0
+        endings_start = context_start + num_context_sentences
+        stories = [Story(context=r[context_start:context_start+num_context_sentences],
+                         endings=r[endings_start:endings_start+2])
                    for r in csv.reader(csvfile, delimiter=',')]
     return stories
 
@@ -33,6 +37,8 @@ if __name__ == '__main__':
     parser.add_argument('output_path', type=str, help="path to the output file")
     parser.add_argument('--comparisons', dest='comparisons', action='store_true')
     parser.add_argument('--conditional', dest='conditional', action='store_true')
+    parser.add_argument('--no_header', dest='no_header', action='store_true')
+    parser.add_argument('--no_id', dest='no_id', action='store_true')
     args = parser.parse_args()
 
     print("Loading model...")
@@ -41,7 +47,8 @@ if __name__ == '__main__':
     predictor = Predictor.from_archive(archive, 'textual-entailment')
 
     print("Loading stories...")
-    stories = load_stories(args.data_path)
+    stories = load_stories(args.data_path, has_header=not args.no_header,
+                           has_id=not args.no_id)
 
     print("Computing textual entailment...")
     # Define the sentence index of the begining of the context
