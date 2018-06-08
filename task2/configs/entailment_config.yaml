@@ -1,0 +1,3 @@
+features: ['textual_entailment_comp-cond']
+validation_ratio: 0.15
+random_seed: 42

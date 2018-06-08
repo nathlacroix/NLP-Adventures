@@ -3,4 +3,8 @@ pyyaml
 flake8
 gensim
 sklearn
+allennlp
 spacy
+http://download.pytorch.org/whl/cu90/torch-0.3.1-cp36-cp36m-linux_x86_64.whl
+torchvision
+h5py==2.8.0rc1
