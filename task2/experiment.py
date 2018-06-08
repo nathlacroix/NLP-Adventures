@@ -14,6 +14,9 @@ from models.mlp import SimpleMLP
 from sklearn.metrics import accuracy_score
 from scipy.stats import ttest_rel
 np.warnings.filterwarnings('ignore')
+np.set_printoptions(threshold=np.nan)
+
+
 
 def get_labels(file_name):
     """ Get the correct labels from the file 'file_name'. """
@@ -62,12 +65,12 @@ def get_train_val_data(base_path, **config):
     """ Load the data and split in training and validation set. """
     features_path = Path(base_path, 'features/train')
     X = load_features(features_path, config['features'])
-    data_path = Path(base_path, 'data/val_stories.csv')
+    X = X[0:1871]
+    data_path = Path(base_path, 'data/val_only.csv')
     y = get_labels(data_path)
-    print(len(y))
     return train_test_split(X, y,
-                         #test_size=config['validation_ratio'],
-                           test_size=.5, shuffle=False,
+                         test_size=config['validation_ratio'],
+                          # test_size=.5, shuffle=False,
                          random_state=config['random_seed'])
 
 def mask_stories_with_cond(X, y, cond=None):
@@ -125,21 +128,33 @@ if __name__ == '__main__':
         X_train, X_val, y_train, y_val = get_train_val_data(args.base_path, **config)
         #X_t_masked, y_t_masked, ind_train = mask_stories_with_cond(X_train, y_train, )
         #X_v_masked, y_v_masked, ind_val = mask_stories_with_cond(X_val, y_val)
-        #print(X_v_masked.shape)
+        print(X_train.shape)
         #TOTAL
         # Train model
 
         model = models[config.get('model', {}).get('name', 'lr')]
         start = datetime.datetime.now()
-        model.train(X_train, y_train)
+        model.train(X_train[:,:36], y_train)
         print('Training time: {}' .format(datetime.datetime.now() - start))
-        pred1 = model.predict(X_val)
+        pred1 = model.predict(X_val[:,:36])
+        proba_1 = model.predict_proba(X_val[:,:36])
 
-        # print indices of wrong stories
-        #print(np.squeeze(np.argwhere(pred1 != y_val), axis=1))
+        sent_model = models['lr']
+        sent_model.train(X_train[:,36:], y_train)
+        pred_sent = sent_model.predict(X_val[:,36:])
 
+        offset = 0.10
+        proba_comb = np.minimum(1, (offset + np.abs(proba_1[:, 0] - 0.5))*2)*pred1 + \
+                     np.maximum(0, (1 - (offset + np.abs(proba_1[:, 0] - 0.5))*2))*pred_sent
+        proba_mask = proba_comb > 1.5
+        pred_comb = np.ones(X_val.shape[0], dtype=np.int)
+        pred_comb[proba_mask] = 2
+
+        pred_comb_check= np.ones(X_val.shape[0], dtype=np.int)
+        pred_comb_check[proba_1[:,0] < .55] = pred_sent[proba_1[:,0] < .55]
         # Evaluate it
-        accuracy = model.score(X_val, y_val)
+        #accuracy = model.score(X_val, y_val)
+        accuracy = accuracy_score(y_val, pred_comb)
         print("Acc= " + str(accuracy))
         accuracies.append(accuracy)
 
@@ -196,7 +211,7 @@ if __name__ == '__main__':
         features_path = Path(args.base_path, 'features/test')
         X_test = load_features(features_path, config['features'])
         y_pred = model.predict(X_test)
-
+        y_proba = model.predict_proba(X_test)
         # Write the prediction in a file
         output_path = Path(args.base_path, 'outputs')
         if not os.path.exists(output_path):
@@ -204,6 +219,7 @@ if __name__ == '__main__':
         filename = Path(output_path, args.exp_name + '.csv')
         with open(filename, 'w') as csvfile:
             writer = csv.writer(csvfile, delimiter=' ')
-            for pred in y_pred:
+            for pred,prob in zip(y_pred, y_proba) :
                 writer.writerow([str(pred)])
+                #writer.writerow([str(prob)])
         print("Prediction stored in " + str(filename))

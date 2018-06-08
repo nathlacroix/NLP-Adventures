@@ -115,9 +115,9 @@ class SentimentAnalyzer:
         self.sent_condensed_traj_counts_dict = {}
         self.sent_traj_counts_array = None
         self.sent_condensed_traj_counts_array = None
-        self.sent_traj_counts_path = sent_traj_counts_path
+        self.sent_traj_counts_path = dir + sent_traj_counts_path
         self.save_traj = save_traj
-        self.save_traj_path = save_traj_path
+        self.save_traj_path = dir + save_traj_path
         self.probas_wanted = probas_wanted
         self.combination_of_methods = sent_method['method']
         self.force_retrain = force_retrain
@@ -244,7 +244,7 @@ class SentimentAnalyzer:
             story_sent = self.combine_sentiment_methods(story_sent, combination_of_methods,
                                                         return_normalized=return_normalized)
         #print('story sent: {}' .format(story_sent))
-        #print('vader: {}'.format(vader_sent))
+        print('vader: {}'.format(vader_sent))
         return story_sent
 
     def categorize(self, array, pos_threshold, neg_threshold):
@@ -391,7 +391,8 @@ class SentimentAnalyzer:
             i += 1
 
             story_sent = self.story2sent(story, return_normalized=False)
-            #print(story)
+            print(story)
+            print(story_sent)
             #make sure the two endings are in story_sent: note: normally 4 dims in array but + counts = 5
             assert len(story_sent) == self.sent_traj_counts_array.shape[1]
 
@@ -572,7 +573,7 @@ if __name__ == '__main__':
     print("Train Stories loaded.")
 
     print('Loading stories according to parsing instructions: {}'.format(test_parsing_instructions))
-    test_stories = load_stories(args.data_path + '/test_nlu18_utf-8.csv',
+    test_stories = load_stories(args.data_path + '/test_nlu18.csv',
                                 test_parsing_instructions, header=False)
     print("Test Stories loaded.")
 
@@ -617,9 +618,9 @@ if __name__ == '__main__':
                                                                 proba_ending2,
                                                                 config.get('extra_features',
                                                                            ['bin']))
-    #print(extra_features)
+    print(extra_features)
     # Compute the topic similarity between the endings and the context
-    #print(proba_ending1, proba_ending2)
+    print(proba_ending1, proba_ending2)
     print("Done. Time for prediction: {}" .format(tm.datetime.now() - start))
 
     # Write the features to a .npz file
@@ -630,4 +631,4 @@ if __name__ == '__main__':
 
 
     print("Sentiment features stored in " + dir +
-          '/features/train/' + 'test_' + args.output_path.split(sep='/')[-1])
+          '/features/test/' + args.output_path.split(sep='/')[-1])

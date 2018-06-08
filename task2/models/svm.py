@@ -6,7 +6,7 @@ class SimpleSVM():
     def __init__(self):
         self.parameters_to_tune = {'C': [0.01, 0.1, 1., 10, 100]}
         self.nb_folds = 5
-        self.clf = GridSearchCV(SVC(), self.parameters_to_tune,
+        self.clf = GridSearchCV(SVC(kernel='linear', probability=True), self.parameters_to_tune,
                                 cv=self.nb_folds, scoring='accuracy')
 
     def train(self, X_train, y_train):
@@ -16,6 +16,9 @@ class SimpleSVM():
 
     def predict(self, X_test):
         return self.clf.predict(X_test)
+
+    def predict_proba(self, X_test):
+        return self.clf.predict_proba(X_test)
 
     def score(self, X_test, y_test):
         return self.clf.score(X_test, y_test)

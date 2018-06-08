@@ -17,6 +17,9 @@ class SimpleLogisticRegression():
     def predict(self, X_test):
         return self.clf.predict(X_test)
 
+    def predict_proba(self, X_test):
+        return self.clf.predict_proba(X_test)
+
     def score(self, X_test, y_test):
         return self.clf.score(X_test, y_test)
 
