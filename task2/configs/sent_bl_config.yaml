@@ -1,0 +1,27 @@
+sentiment_files_path_dict:
+  negative: '/ressources/sentiment_lexica/negative_words.txt'
+  positive: '/ressources/sentiment_lexica/positive_words.txt'
+  mpqa: '/ressources/sentiment_lexica/subjective_clues.txt'
+
+save_traj_path: '/ressources/traj_counts_bl_total.npz'
+sent_traj_counts_path: '/ressources/traj_counts_bl_total.npz'
+force_retrain: False
+
+extra_features:
+  - bin
+  - neutral
+
+lock_pos: True
+
+#choose from 'binglui', 'mpqa', 'vader', 'average' (of bl & mpqa), 'blobtext'
+# common values for vader are 0.05 and 0.1 for blobtext
+# default is 'average', with implicit 1 / -1 sentiment word as thresholds but will be changed later.
+sent_method:
+  method: 'binglui'
+
+
+predict_neutral: False
+#default is all. Please do not put any value if you want default.
+n_train_max:
+n_eval_max:
+n_test_max:
