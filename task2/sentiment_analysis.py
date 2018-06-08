@@ -554,6 +554,8 @@ if __name__ == '__main__':
                         help="path to the stories")
     parser.add_argument('output_path', type=str, help="path to the output file")
     parser.add_argument('config', type=str, help='path to config file')
+    parser.add_argument('test_file_name', type=str, help='choose between val_stories.csv, ' 
+                                                         'test_stories.csv, or test_nlu18.csv')
 #    parser.add_argument('--pretrained_traj_path', type=str, help='Path to file containing array' \
 #                        'of "counts" of sentiment trajectories')
 #    parser.add_argument('--save_traj_path', type=str, help="path to store sentiment_trajectories of model." \
@@ -566,16 +568,21 @@ if __name__ == '__main__':
     train_stories = load_stories(args.data_path + '/train_stories.csv',
                                  train_parsing_instructions)
     print("Train Stories loaded.")
-    print('Loading stories according to parsing instructions: {}'.format(eval_parsing_instructions))
-    eval_stories = load_stories(args.data_path + '/val_stories.csv',
-                                eval_parsing_instructions)
-    print("Eval Stories loaded.")
-    print("Train Stories loaded.")
-
-    print('Loading stories according to parsing instructions: {}'.format(test_parsing_instructions))
-    test_stories = load_stories(args.data_path + '/test_nlu18.csv',
-                                test_parsing_instructions, header=False)
-    print("Test Stories loaded.")
+    if args.test_file_name == 'val_stories.csv':
+        print('Loading stories according to parsing instructions: {}'.format(eval_parsing_instructions))
+        test_stories = load_stories(args.data_path + '/val_stories.csv',
+                                    eval_parsing_instructions)
+        print("Eval Stories loaded.")
+    elif args.test_file_name == 'test_nlu18.csv':
+        print('Loading stories according to parsing instructions: {}'.format(test_parsing_instructions))
+        test_stories = load_stories(args.data_path + '/test_nlu18.csv',
+                                    test_parsing_instructions, header=False)
+        print("Test NLU 18 Stories loaded.")
+    elif args.test_file_name == 'test_stories.csv':
+        print('Loading stories according to parsing instructions: {}'.format(eval_parsing_instructions))
+        test_stories = load_stories(args.data_path + '/test_stories.csv',
+                                    eval_parsing_instructions)
+        print("STC Test Stories loaded.")
 
     with open(args.config, 'r') as f:
         config = yaml.load(f)
@@ -587,27 +594,6 @@ if __name__ == '__main__':
     print('Traj counts: {} \n Traj condensed counts: \n{}'\
             .format(sentiment_analyzer.sent_traj_counts_array,
                     sentiment_analyzer.sent_condensed_traj_counts_array))
-
-    start = tm.datetime.now()
-    print('Computing probabilities ...')
-    proba_ending1, \
-        proba_ending2 = sentiment_analyzer.predict_proba(eval_stories[0:config.get('n_eval_max',
-                                                                                   None)], **config)
-    extra_features = sentiment_analyzer.generate_extra_features(proba_ending1,
-                                                                proba_ending2,
-                                                                config.get('extra_features',
-                                                                           ['bin']))
-    #print(extra_features)
-    # Compute the topic similarity between the endings and the context
-    #print(proba_ending1, proba_ending2)
-    print("Done. Time for prediction: {}" .format(tm.datetime.now() - start))
-
-    # Write the features to a .npz file
-    np.savez_compressed(args.output_path,
-                        sentiment_ending1=proba_ending1,
-                        sentiment_ending2=proba_ending2,
-                        extra_features=extra_features)
-
 
     start = tm.datetime.now()
     print('Computing probabilities ...')
@@ -624,11 +610,10 @@ if __name__ == '__main__':
     print("Done. Time for prediction: {}" .format(tm.datetime.now() - start))
 
     # Write the features to a .npz file
-    np.savez_compressed(dir + '/features/train/' + 'test_' +args.output_path.split(sep='/')[-1],
+    np.savez_compressed(args.output_path,
                         sentiment_ending1=proba_ending1,
                         sentiment_ending2=proba_ending2,
                         extra_features=extra_features)
 
 
-    print("Sentiment features stored in " + dir +
-          '/features/test/' + args.output_path.split(sep='/')[-1])
+    print("Sentiment features stored in " + args.output_path)
