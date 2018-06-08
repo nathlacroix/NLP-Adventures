@@ -6,4 +6,4 @@ install_gpu:
 	wget -P task2/data/ https://s3-us-west-2.amazonaws.com/allennlp/models/decomposable-attention-elmo-2018.02.19.tar.gz
 
 light_install:
-	pip3 install -r light_requirements.py
+	pip3 install -r light_requirements.txt

@@ -9,7 +9,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from textblob import TextBlob
 import os
 
-dir = os.path.dirname(__file__)
+dir = str(Path(__file__).parents[0])
 train_parsing_instructions = {'beginning': [2],
                         'body': [3, 4],
                         'climax': [5],

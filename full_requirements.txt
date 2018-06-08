@@ -8,7 +8,6 @@ textblob
 allennlp
 spacy
 h5py==2.8.0rc1
-jnius
 cython
-ccg_nlpy
 tqdm
+vaderSentiment
