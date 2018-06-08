@@ -48,15 +48,15 @@ def load_features(path, features):
 def get_train_val_data(base_path, **config):
     """ Load the training and validation data. """
     # Load training data
-    train_features_path = Path(base_path, 'features/train')
+    train_features_path = Path(base_path, 'features/val')
     X_train = load_features(train_features_path, config['features'])
-    train_data_file = Path(base_path, 'data/' + config['train_labels_file'])
+    train_data_file = Path(base_path, 'data/' + config['val_labels_file'])
     y_train = get_labels(train_data_file)
 
     # Load validation data
-    val_features_path = Path(base_path, 'features/val')
+    val_features_path = Path(base_path, 'features/test')
     X_val = load_features(val_features_path, config['features'])
-    val_data_file = Path(base_path, 'data/' + config['val_labels_file'])
+    val_data_file = Path(base_path, 'data/' + config['test_labels_file'])
     y_val = get_labels(val_data_file)
     return X_train, X_val, y_train, y_val
 
@@ -87,7 +87,7 @@ if __name__ == '__main__':
 
     # Make a prediction if test is True
     if args.test:
-        features_path = Path(args.base_path, 'features/test')
+        features_path = Path(args.base_path, 'features/eth_test')
         X_test = load_features(features_path, config['features'])
         y_pred = model.predict(X_test)
 
