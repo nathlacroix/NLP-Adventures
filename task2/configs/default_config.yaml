@@ -1,4 +1,4 @@
-features: ['semlm', 'sentiment', 'topic', 'textual_entailment']
+features: ['semlm', 'sentiment_bl', 'sentiment_vader', 'sentiment_mpqa', 'topic', 'textual_entailment']
 val_labels_file: 'val_stories.csv'
 test_labels_file: 'test_stories.csv'
 random_seed: 42
