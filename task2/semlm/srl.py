@@ -32,7 +32,11 @@ class PropbankSrl:
                 self._predicate_properties_to_name(p['properties']),
                 p['tokens']))
 
-        return index_predicate_token
+        index_pos_token = []
+        for c in doc.get_pos.get_cons():
+            index_pos_token.append((c['start'], c['label'], c['tokens']))
+
+        return index_predicate_token, index_pos_token
 
     def _predicate_properties_to_name(self, p):
         return p['predicate'] + '.' + p['SenseNumber']
