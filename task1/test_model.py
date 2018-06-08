@@ -45,8 +45,11 @@ if __name__ == '__main__':
         ground_truth_size = 5
         #sample = np.random.choice(
         #        np.arange(config['vocab_size']), (1, ground_truth_size))
-        sample = np.array([[10,24,178,178,178],[1, 2,3,4,5]])
+        sample = np.array([[10,24,178,178,178]])
         _predictions = sess.run(predictions, feed_dict={sentences: sample})
 
-        assert _predictions.shape == (2, config['sentence_size'])
 
+
+        assert _predictions.shape == (1, config['sentence_size'])
+
+        i=0
