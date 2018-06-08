@@ -1,0 +1,4 @@
+features: ['sentiment_bl', 'sentiment_vader', 'sentiment_mpqa', 'textual_entailment']
+val_labels_file: 'val_stories.csv'
+test_labels_file: 'test_stories.csv'
+random_seed: 42

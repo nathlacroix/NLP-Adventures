@@ -11,8 +11,9 @@ class SimpleLogisticRegression():
     def train(self, X_train, y_train):
         print("Start training...")
         self.clf.fit(X_train, y_train)
-        print("Training is over. Best params: {}".format(self.clf.best_params_))
-        print(self.clf.cv_results_)
+        print("Training is over")
+        # print("Best params: {}".format(self.clf.best_params_))
+        # print(self.clf.cv_results_)
 
     def predict(self, X_test):
         return self.clf.predict(X_test)
