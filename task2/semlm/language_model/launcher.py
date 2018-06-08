@@ -61,11 +61,11 @@ def _train(data_path, exp_name, config):
     val_data = np.array(datasets[2])
 
     # Get the index corresponding to token <pad>
-    pad_token = ('<pad>', '')
+    pad_token = '<pad>'
     if pad_token in dictionary:
         pad_ind = dictionary.index(pad_token)
     else:
-        raise Exception("Token ('<pad>', '') should be present in dictionary.")
+        raise Exception("Token '<pad>' should be present in dictionary.")
 
     train(train_data, val_data, pad_ind, exp_dir, **config)
 
@@ -84,11 +84,11 @@ def _eval(data_path, exp_name, config):
     test_data = datasets[3]
 
     # Get the index corresponding to token <pad>
-    pad_token = ('<pad>', '')
+    pad_token = '<pad>'
     if pad_token in dictionary:
         pad_ind = dictionary.index(pad_token)
     else:
-        raise Exception("Token ('<pad>', '') should be present in dictionary.")
+        raise Exception("Token '<pad>' should be present in dictionary.")
 
     eval(test_data, pad_ind, exp_dir, **config)
 
