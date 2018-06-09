@@ -1,0 +1,13 @@
+numpy
+pyyaml
+flake8
+gensim
+sklearn
+xgboost
+textblob
+allennlp
+spacy
+h5py==2.8.0rc1
+cython
+tqdm
+vaderSentiment

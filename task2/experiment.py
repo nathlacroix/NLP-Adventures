@@ -4,7 +4,6 @@ import numpy as np
 import csv
 import yaml
 from pathlib import Path
-from sklearn.model_selection import train_test_split
 from models.simple_logistic_regression import SimpleLogisticRegression
 
 
@@ -38,8 +37,14 @@ def load_features(path, features):
             continue
         with np.load(data_path) as data:
             feat_array = [data[key] for key in data.files]
-            feat_array = np.stack(feat_array, axis=1)
-            arrays.append(feat_array)
+
+            # check if arrays are one dimensional (=1 array = 1 feature)
+            #  or if arrays contain several features and stack accordingly
+            if(len(feat_array[0].shape)) == 1:
+                feat_array = np.stack(feat_array, axis=1)
+                arrays.append(feat_array)
+            else:
+                arrays.append(np.hstack(feat_array))
     if len(arrays) == 0:
         raise Exception("No features found, aborting.")
     return np.concatenate(arrays, axis=1)
